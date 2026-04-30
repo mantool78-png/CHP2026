@@ -331,6 +331,25 @@ td {
     grid-template-columns: 1fr;
 }
 
+.invite-card {
+    border-color: rgba(50, 210, 150, .35);
+}
+
+.invite-box {
+    align-items: center;
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr auto;
+    padding: 1rem;
+}
+
+.invite-box p {
+    margin: 0;
+}
+
 .score-inputs {
     align-items: center;
     display: flex;
@@ -640,6 +659,7 @@ pre {
     .team-row,
     .match-row,
     .mini-league-card,
+    .invite-box,
     .prediction-row {
         grid-template-columns: 1fr;
     }

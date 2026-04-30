@@ -11,6 +11,21 @@
     <a class="button small secondary" href="/mini-leagues">Все мини-лиги</a>
 </section>
 
+<?php
+    $inviteUrl = '/mini-leagues';
+    $inviteText = 'Я создал мини-лигу "' . $league['name'] . '" в конкурсе прогнозов ЧМ-2026. '
+        . 'Вступай по коду ' . $league['invite_code'] . ': ' . $inviteUrl;
+?>
+
+<section class="card invite-card">
+    <h2>Пригласить друзей</h2>
+    <p class="muted">Отправьте этот текст друзьям, чтобы они вступили в вашу мини-лигу.</p>
+    <div class="invite-box" data-copy-text="<?= h($inviteText) ?>">
+        <p><?= h($inviteText) ?></p>
+        <button class="button small" type="button" data-copy-button>Скопировать</button>
+    </div>
+</section>
+
 <section class="card">
     <h2>Таблица мини-лиги</h2>
     <?php if (!$leaders): ?>
@@ -48,3 +63,24 @@
         </div>
     <?php endif; ?>
 </section>
+
+<script>
+document.querySelectorAll('[data-copy-button]').forEach(function (button) {
+    button.addEventListener('click', function () {
+        var box = button.closest('[data-copy-text]');
+        var text = box ? box.dataset.copyText : '';
+
+        if (navigator.clipboard && text) {
+            navigator.clipboard.writeText(text).then(function () {
+                button.textContent = 'Скопировано';
+                setTimeout(function () {
+                    button.textContent = 'Скопировать';
+                }, 1800);
+            });
+            return;
+        }
+
+        window.prompt('Скопируйте текст приглашения:', text);
+    });
+});
+</script>

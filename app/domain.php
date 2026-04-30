@@ -259,6 +259,8 @@ function participant_badges(int $userId): array
 
     $exactScores = (int) $scoreStats['exact_scores_count'];
     $outcomes = (int) $scoreStats['outcomes_count'];
+    $ownedMiniLeagues = user_owned_mini_leagues_count($userId);
+    $largestMiniLeague = user_largest_owned_mini_league_size($userId);
 
     return [
         [
@@ -290,6 +292,16 @@ function participant_badges(int $userId): array
             'title' => 'В зоне призов',
             'description' => 'Попасть в топ-10 таблицы.',
             'earned' => $summary !== null && (int) $summary['rank'] <= 10,
+        ],
+        [
+            'title' => 'Капитан',
+            'description' => 'Создать свою мини-лигу.',
+            'earned' => $ownedMiniLeagues >= 1,
+        ],
+        [
+            'title' => 'Собрал команду',
+            'description' => 'Собрать 5 участников в своей мини-лиге.',
+            'earned' => $largestMiniLeague >= 5,
         ],
     ];
 }
@@ -336,6 +348,30 @@ function user_mini_leagues(int $userId): array
     $stmt->execute([$userId]);
 
     return $stmt->fetchAll();
+}
+
+function user_owned_mini_leagues_count(int $userId): int
+{
+    $stmt = db()->prepare('SELECT COUNT(*) FROM mini_leagues WHERE owner_user_id = ?');
+    $stmt->execute([$userId]);
+
+    return (int) $stmt->fetchColumn();
+}
+
+function user_largest_owned_mini_league_size(int $userId): int
+{
+    $stmt = db()->prepare(
+        "SELECT COUNT(mlm.user_id) AS members_count
+         FROM mini_leagues ml
+         LEFT JOIN mini_league_members mlm ON mlm.league_id = ml.id
+         WHERE ml.owner_user_id = ?
+         GROUP BY ml.id
+         ORDER BY members_count DESC
+         LIMIT 1"
+    );
+    $stmt->execute([$userId]);
+
+    return (int) ($stmt->fetchColumn() ?: 0);
 }
 
 function find_mini_league(int $leagueId): ?array

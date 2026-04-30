@@ -308,13 +308,15 @@ td {
 }
 
 .match-list,
-.prediction-list {
+.prediction-list,
+.mini-league-list {
     display: grid;
     gap: .75rem;
 }
 
 .match-row,
-.prediction-row {
+.prediction-row,
+.mini-league-card {
     align-items: center;
     background: rgba(255,255,255,.04);
     border: 1px solid var(--border);
@@ -323,6 +325,10 @@ td {
     gap: 1rem;
     grid-template-columns: 1fr auto auto;
     padding: 1rem;
+}
+
+.mini-league-card {
+    grid-template-columns: 1fr;
 }
 
 .score-inputs {
@@ -633,6 +639,7 @@ pre {
     .team-form,
     .team-row,
     .match-row,
+    .mini-league-card,
     .prediction-row {
         grid-template-columns: 1fr;
     }

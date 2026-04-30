@@ -289,6 +289,79 @@ try {
         return;
     }
 
+    if ($method === 'GET' && $path === '/mini-leagues') {
+        $user = require_user();
+
+        view('user/mini_leagues', [
+            'leagues' => user_mini_leagues((int) $user['id']),
+        ]);
+        return;
+    }
+
+    if ($method === 'POST' && $path === '/mini-leagues/create') {
+        verify_csrf();
+        $user = require_user();
+
+        $name = trim((string) ($_POST['name'] ?? ''));
+        if ($name === '' || mb_strlen($name) > 120) {
+            flash('error', 'Укажите название мини-лиги до 120 символов.');
+            redirect('/mini-leagues');
+        }
+
+        $code = generate_mini_league_code();
+        $stmt = db()->prepare(
+            "INSERT INTO mini_leagues (name, invite_code, owner_user_id, created_at, updated_at)
+             VALUES (?, ?, ?, NOW(), NOW())"
+        );
+        $stmt->execute([$name, $code, (int) $user['id']]);
+        $leagueId = (int) db()->lastInsertId();
+
+        $member = db()->prepare('INSERT INTO mini_league_members (league_id, user_id, created_at) VALUES (?, ?, NOW())');
+        $member->execute([$leagueId, (int) $user['id']]);
+
+        flash('success', 'Мини-лига создана. Поделитесь кодом приглашения с друзьями.');
+        redirect('/mini-league?id=' . $leagueId);
+    }
+
+    if ($method === 'POST' && $path === '/mini-leagues/join') {
+        verify_csrf();
+        $user = require_user();
+
+        $code = strtoupper(trim((string) ($_POST['invite_code'] ?? '')));
+        $league = find_mini_league_by_code($code);
+        if (!$league) {
+            flash('error', 'Мини-лига с таким кодом не найдена.');
+            redirect('/mini-leagues');
+        }
+
+        $stmt = db()->prepare(
+            "INSERT IGNORE INTO mini_league_members (league_id, user_id, created_at)
+             VALUES (?, ?, NOW())"
+        );
+        $stmt->execute([(int) $league['id'], (int) $user['id']]);
+
+        flash('success', 'Вы вступили в мини-лигу.');
+        redirect('/mini-league?id=' . (int) $league['id']);
+    }
+
+    if ($method === 'GET' && $path === '/mini-league') {
+        $user = require_user();
+        $leagueId = (int) ($_GET['id'] ?? 0);
+        $league = find_mini_league($leagueId);
+
+        if (!$league || !user_in_mini_league($leagueId, (int) $user['id'])) {
+            http_response_code(404);
+            view('errors/404');
+            return;
+        }
+
+        view('user/mini_league', [
+            'league' => $league,
+            'leaders' => mini_league_leaderboard($leagueId),
+        ]);
+        return;
+    }
+
     if ($method === 'GET' && $path === '/match') {
         $matchId = (int) ($_GET['id'] ?? 0);
         $match = find_match($matchId);

@@ -322,3 +322,106 @@ function participant_summary(int $userId): ?array
 
     return null;
 }
+
+function user_mini_leagues(int $userId): array
+{
+    $stmt = db()->prepare(
+        "SELECT ml.*,
+                (SELECT COUNT(*) FROM mini_league_members mlm WHERE mlm.league_id = ml.id) AS members_count
+         FROM mini_leagues ml
+         JOIN mini_league_members mlm ON mlm.league_id = ml.id
+         WHERE mlm.user_id = ?
+         ORDER BY ml.created_at DESC"
+    );
+    $stmt->execute([$userId]);
+
+    return $stmt->fetchAll();
+}
+
+function find_mini_league(int $leagueId): ?array
+{
+    $stmt = db()->prepare(
+        "SELECT ml.*,
+                u.name AS owner_name,
+                (SELECT COUNT(*) FROM mini_league_members mlm WHERE mlm.league_id = ml.id) AS members_count
+         FROM mini_leagues ml
+         JOIN users u ON u.id = ml.owner_user_id
+         WHERE ml.id = ?
+         LIMIT 1"
+    );
+    $stmt->execute([$leagueId]);
+
+    return $stmt->fetch() ?: null;
+}
+
+function find_mini_league_by_code(string $inviteCode): ?array
+{
+    $stmt = db()->prepare('SELECT * FROM mini_leagues WHERE invite_code = ? LIMIT 1');
+    $stmt->execute([strtoupper(trim($inviteCode))]);
+
+    return $stmt->fetch() ?: null;
+}
+
+function user_in_mini_league(int $leagueId, int $userId): bool
+{
+    $stmt = db()->prepare('SELECT 1 FROM mini_league_members WHERE league_id = ? AND user_id = ? LIMIT 1');
+    $stmt->execute([$leagueId, $userId]);
+
+    return (bool) $stmt->fetchColumn();
+}
+
+function generate_mini_league_code(): string
+{
+    do {
+        $code = strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));
+        $stmt = db()->prepare('SELECT 1 FROM mini_leagues WHERE invite_code = ? LIMIT 1');
+        $stmt->execute([$code]);
+    } while ($stmt->fetchColumn());
+
+    return $code;
+}
+
+function mini_league_leaderboard(int $leagueId): array
+{
+    $leaders = [];
+    $memberIds = [];
+    foreach (leaderboard() as $leader) {
+        $leaders[(int) $leader['id']] = $leader;
+    }
+
+    $stmt = db()->prepare(
+        "SELECT u.id, u.name, u.created_at
+         FROM mini_league_members mlm
+         JOIN users u ON u.id = mlm.user_id
+         WHERE mlm.league_id = ?
+         ORDER BY u.created_at ASC"
+    );
+    $stmt->execute([$leagueId]);
+
+    $rows = [];
+    foreach ($stmt->fetchAll() as $member) {
+        $memberId = (int) $member['id'];
+        $memberIds[] = $memberId;
+        $rows[] = $leaders[$memberId] ?? [
+            'id' => $memberId,
+            'name' => $member['name'],
+            'total_points' => 0,
+            'match_points' => 0,
+            'champion_points' => 0,
+            'predictions_count' => 0,
+            'exact_scores_count' => 0,
+            'outcomes_count' => 0,
+            'created_at' => $member['created_at'],
+        ];
+    }
+
+    usort($rows, static function (array $a, array $b): int {
+        return ((int) $b['total_points'] <=> (int) $a['total_points'])
+            ?: ((int) $b['exact_scores_count'] <=> (int) $a['exact_scores_count'])
+            ?: ((int) $b['outcomes_count'] <=> (int) $a['outcomes_count'])
+            ?: ((int) $a['predictions_count'] <=> (int) $b['predictions_count'])
+            ?: strcmp((string) ($a['created_at'] ?? ''), (string) ($b['created_at'] ?? ''));
+    });
+
+    return $rows;
+}

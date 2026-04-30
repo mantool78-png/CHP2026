@@ -84,6 +84,26 @@ CREATE TABLE champion_predictions (
     CONSTRAINT champion_predictions_team_fk FOREIGN KEY (team_id) REFERENCES teams(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE mini_leagues (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(120) NOT NULL,
+    invite_code VARCHAR(16) NOT NULL UNIQUE,
+    owner_user_id INT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    CONSTRAINT mini_leagues_owner_fk FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE mini_league_members (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    league_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL,
+    UNIQUE KEY mini_league_members_unique (league_id, user_id),
+    CONSTRAINT mini_league_members_league_fk FOREIGN KEY (league_id) REFERENCES mini_leagues(id) ON DELETE CASCADE,
+    CONSTRAINT mini_league_members_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE settings (
     setting_key VARCHAR(80) PRIMARY KEY,
     setting_value VARCHAR(255) NOT NULL,

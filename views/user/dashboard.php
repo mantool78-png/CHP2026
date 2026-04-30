@@ -51,6 +51,7 @@
             <h2>Ваш результат</h2>
             <div class="actions compact-actions">
                 <a class="button small secondary" href="/my-scores">Мои очки</a>
+                <a class="button small secondary" href="/mini-leagues">Мини-лиги</a>
                 <a class="button small secondary" href="/leaderboard">Общая таблица</a>
             </div>
         </div>

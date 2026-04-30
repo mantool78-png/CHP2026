@@ -14,6 +14,9 @@
             <a href="/rules">Правила</a>
             <a href="/leaderboard">Таблица</a>
             <?php if ($user): ?>
+                <?php if (($user['role'] ?? '') !== 'admin'): ?>
+                    <a href="/mini-leagues">Мини-лиги</a>
+                <?php endif; ?>
                 <a href="<?= ($user['role'] ?? '') === 'admin' ? '/admin' : '/dashboard' ?>">Кабинет</a>
                 <form action="/logout" method="post" class="inline-form">
                     <?= csrf_field() ?>

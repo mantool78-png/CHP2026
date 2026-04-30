@@ -39,6 +39,19 @@
 </section>
 
 <section class="card">
+    <h2>Достижения</h2>
+    <div class="badges-grid">
+        <?php foreach ($badges as $badge): ?>
+            <div class="badge-card <?= $badge['earned'] ? 'earned' : 'locked' ?>">
+                <span><?= $badge['earned'] ? 'Получено' : 'В процессе' ?></span>
+                <strong><?= h($badge['title']) ?></strong>
+                <p><?= h($badge['description']) ?></p>
+            </div>
+        <?php endforeach; ?>
+    </div>
+</section>
+
+<section class="card">
     <h2>Прогнозы на матчи</h2>
     <?php if (!$predictions): ?>
         <p class="muted">Вы пока не сделали ни одного прогноза.</p>

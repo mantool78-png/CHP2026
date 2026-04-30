@@ -92,6 +92,22 @@
 <?php endif; ?>
 
 <section class="card">
+    <div class="participant-summary-head">
+        <h2>Достижения</h2>
+        <a class="button small secondary" href="/my-scores">Вся история</a>
+    </div>
+    <div class="badges-grid">
+        <?php foreach ($badges as $badge): ?>
+            <div class="badge-card <?= $badge['earned'] ? 'earned' : 'locked' ?>">
+                <span><?= $badge['earned'] ? 'Получено' : 'В процессе' ?></span>
+                <strong><?= h($badge['title']) ?></strong>
+                <p><?= h($badge['description']) ?></p>
+            </div>
+        <?php endforeach; ?>
+    </div>
+</section>
+
+<section class="card">
     <h2>Прогноз на чемпиона</h2>
     <?php if ($championPredictionDeadline): ?>
         <p class="muted">

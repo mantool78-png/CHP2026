@@ -241,6 +241,59 @@ function leaderboard(): array
     return $stmt->fetchAll();
 }
 
+function participant_badges(int $userId): array
+{
+    $predictionCount = user_predictions_count($userId);
+    $championPrediction = user_champion_prediction($userId);
+    $summary = participant_summary($userId);
+
+    $stmt = db()->prepare(
+        "SELECT
+            COALESCE(SUM(CASE WHEN reason = 'Точный счет' THEN 1 ELSE 0 END), 0) AS exact_scores_count,
+            COALESCE(SUM(CASE WHEN reason IN ('Точный счет', 'Угадан исход') THEN 1 ELSE 0 END), 0) AS outcomes_count
+         FROM scores
+         WHERE user_id = ?"
+    );
+    $stmt->execute([$userId]);
+    $scoreStats = $stmt->fetch() ?: ['exact_scores_count' => 0, 'outcomes_count' => 0];
+
+    $exactScores = (int) $scoreStats['exact_scores_count'];
+    $outcomes = (int) $scoreStats['outcomes_count'];
+
+    return [
+        [
+            'title' => 'Первый прогноз',
+            'description' => 'Сделать первый прогноз на матч.',
+            'earned' => $predictionCount >= 1,
+        ],
+        [
+            'title' => 'Пробный драйв',
+            'description' => 'Использовать все бесплатные прогнозы.',
+            'earned' => $predictionCount >= free_prediction_limit(),
+        ],
+        [
+            'title' => 'Выбор сделан',
+            'description' => 'Выбрать будущего чемпиона мира.',
+            'earned' => $championPrediction !== null,
+        ],
+        [
+            'title' => 'Точный удар',
+            'description' => 'Угадать первый точный счет.',
+            'earned' => $exactScores >= 1,
+        ],
+        [
+            'title' => 'Чувство игры',
+            'description' => 'Угадать исходы 5 матчей.',
+            'earned' => $outcomes >= 5,
+        ],
+        [
+            'title' => 'В зоне призов',
+            'description' => 'Попасть в топ-10 таблицы.',
+            'earned' => $summary !== null && (int) $summary['rank'] <= 10,
+        ],
+    ];
+}
+
 function prize_pool(): int
 {
     $stmt = db()->query("SELECT COUNT(*) FROM users WHERE role = 'participant' AND payment_status = 'active'");

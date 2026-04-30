@@ -495,6 +495,53 @@ td {
     margin-bottom: 0;
 }
 
+.badges-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 1rem;
+}
+
+.badge-card {
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    padding: 1rem;
+}
+
+.badge-card.earned {
+    background: rgba(50, 210, 150, .12);
+    border-color: rgba(50, 210, 150, .4);
+}
+
+.badge-card.locked {
+    opacity: .68;
+}
+
+.badge-card span {
+    color: var(--accent);
+    display: block;
+    font-size: .78rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    margin-bottom: .5rem;
+    text-transform: uppercase;
+}
+
+.badge-card.locked span {
+    color: var(--muted);
+}
+
+.badge-card strong {
+    display: block;
+    font-size: 1.1rem;
+}
+
+.badge-card p {
+    color: var(--muted);
+    margin-bottom: 0;
+}
+
 .score-big {
     font-size: 3rem;
     font-weight: 900;
@@ -580,6 +627,7 @@ pre {
     .detail-list,
     .prediction-stats,
     .participant-summary-grid,
+    .badges-grid,
     .payment-steps,
     .admin-form,
     .team-form,

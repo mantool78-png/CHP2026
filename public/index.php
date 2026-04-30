@@ -155,6 +155,7 @@ try {
             'freePredictionsRemaining' => free_predictions_remaining((int) $user['id']),
             'championPredictionDeadline' => champion_prediction_deadline(),
             'championPredictionLocked' => champion_prediction_locked(),
+            'badges' => participant_badges((int) $user['id']),
             'stageFilters' => $stageFilters,
             'activeStage' => $activeStage,
             'availableDates' => $availableDates,
@@ -208,6 +209,7 @@ try {
             'exactScores' => $exactScores,
             'outcomes' => $outcomes,
             'championPrediction' => $championPrediction,
+            'badges' => participant_badges((int) $user['id']),
         ]);
         return;
     }

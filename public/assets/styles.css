@@ -241,6 +241,46 @@ select {
     color: var(--muted);
 }
 
+.payment-card {
+    border-color: rgba(50, 210, 150, .35);
+}
+
+.payment-steps {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-top: 1.25rem;
+}
+
+.payment-steps div {
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    padding: 1rem;
+}
+
+.payment-steps span {
+    align-items: center;
+    background: var(--accent);
+    border-radius: 999px;
+    color: #062016;
+    display: inline-flex;
+    font-weight: 900;
+    height: 2rem;
+    justify-content: center;
+    margin-bottom: .75rem;
+    width: 2rem;
+}
+
+.payment-steps strong {
+    display: block;
+}
+
+.payment-steps p {
+    color: var(--muted);
+    margin-bottom: 0;
+}
+
 table {
     border-collapse: collapse;
     width: 100%;
@@ -535,6 +575,7 @@ pre {
     .detail-list,
     .prediction-stats,
     .participant-summary-grid,
+    .payment-steps,
     .admin-form,
     .team-form,
     .team-row,

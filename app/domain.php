@@ -49,6 +49,41 @@ function user_prediction(int $userId, int $matchId): ?array
     return $stmt->fetch() ?: null;
 }
 
+function user_predictions_count(int $userId): int
+{
+    $stmt = db()->prepare('SELECT COUNT(*) FROM predictions WHERE user_id = ?');
+    $stmt->execute([$userId]);
+
+    return (int) $stmt->fetchColumn();
+}
+
+function free_prediction_limit(): int
+{
+    return (int) config('app.free_prediction_limit', 5);
+}
+
+function free_predictions_remaining(int $userId): int
+{
+    return max(0, free_prediction_limit() - user_predictions_count($userId));
+}
+
+function can_make_prediction(array $user, int $matchId): bool
+{
+    if (($user['payment_status'] ?? '') === 'blocked') {
+        return false;
+    }
+
+    if (is_active_participant($user)) {
+        return true;
+    }
+
+    if (user_prediction((int) $user['id'], $matchId)) {
+        return true;
+    }
+
+    return free_predictions_remaining((int) $user['id']) > 0;
+}
+
 function user_score(int $userId, int $matchId): ?array
 {
     $stmt = db()->prepare('SELECT * FROM scores WHERE user_id = ? AND match_id = ? LIMIT 1');

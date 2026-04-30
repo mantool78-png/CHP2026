@@ -4,15 +4,45 @@
         <h1><?= h($user['name']) ?></h1>
     </div>
     <span class="status <?= h($user['payment_status']) ?>">
-        <?= h($user['payment_status'] === 'active' ? 'Участник активен' : 'Ожидает подтверждения') ?>
+        <?= h($user['payment_status'] === 'active' ? 'Участник активен' : 'Пробный режим') ?>
     </span>
 </section>
 
 <?php if (!is_active_participant($user)): ?>
-    <div class="alert notice">
-        Оплатите стартовый взнос <?= (int) config('app.entry_fee_rub') ?> ₽ и дождитесь подтверждения админа.
-        После активации здесь появится возможность сохранять прогнозы.
-    </div>
+    <section class="card payment-card">
+        <div>
+            <p class="eyebrow">Пробный режим</p>
+            <h2>Можно сделать <?= (int) $freePredictionLimit ?> прогнозов без оплаты</h2>
+            <p class="muted">
+                Осталось бесплатных прогнозов:
+                <strong><?= (int) $freePredictionsRemaining ?></strong>.
+                Если конкурс понравится, оплатите взнос <?= (int) config('app.entry_fee_rub') ?> ₽,
+                чтобы продолжить игру без лимита и выбрать чемпиона мира.
+            </p>
+        </div>
+        <div class="payment-steps">
+            <div>
+                <span>1</span>
+                <strong>Попробуйте конкурс</strong>
+                <p>Оставьте прогнозы на любые открытые матчи. Уже сыгранные и закрытые матчи прогнозировать нельзя.</p>
+            </div>
+            <div>
+                <span>2</span>
+                <strong>Переведите взнос</strong>
+                <p><?= h(config('app.payment_instructions', 'Реквизиты для оплаты организатор сообщит отдельно.')) ?></p>
+            </div>
+            <div>
+                <span>3</span>
+                <strong>Укажите комментарий</strong>
+                <p><?= h(config('app.payment_comment_hint', 'ЧМ-2026, ваш email или имя на сайте.')) ?></p>
+            </div>
+            <div>
+                <span>4</span>
+                <strong>Дождитесь активации</strong>
+                <p>Админ проверит оплату вручную, после этого лимит будет снят.</p>
+            </div>
+        </div>
+    </section>
 <?php endif; ?>
 
 <?php if (!empty($participantSummary)): ?>
@@ -127,6 +157,7 @@
                     $prediction = user_prediction((int) $user['id'], (int) $match['id']);
                     $score = user_score((int) $user['id'], (int) $match['id']);
                     $locked = prediction_locked($match);
+                    $canSubmitPrediction = !$locked && can_make_prediction($user, (int) $match['id']);
                 ?>
                 <form class="prediction-row" method="post" action="/predictions">
                     <?= csrf_field() ?>
@@ -145,6 +176,11 @@
                             <?php else: ?>
                                 <span class="pill">Прогноз еще не сохранен</span>
                             <?php endif; ?>
+                            <?php if (!$locked && !is_active_participant($user) && !$prediction): ?>
+                                <span class="pill accent">
+                                    <?= (int) $freePredictionsRemaining > 0 ? 'Можно бесплатно' : 'Нужна оплата' ?>
+                                </span>
+                            <?php endif; ?>
                             <?php if ($match['home_score'] !== null && $match['away_score'] !== null): ?>
                                 <span class="pill">Результат: <?= (int) $match['home_score'] ?>:<?= (int) $match['away_score'] ?></span>
                             <?php endif; ?>
@@ -154,11 +190,11 @@
                         </div>
                     </div>
                     <div class="score-inputs">
-                        <input type="number" name="home_score" min="0" value="<?= h($prediction['home_score'] ?? '') ?>" <?= $locked || !is_active_participant($user) ? 'disabled' : '' ?>>
+                        <input type="number" name="home_score" min="0" value="<?= h($prediction['home_score'] ?? '') ?>" <?= !$canSubmitPrediction ? 'disabled' : '' ?>>
                         <span>:</span>
-                        <input type="number" name="away_score" min="0" value="<?= h($prediction['away_score'] ?? '') ?>" <?= $locked || !is_active_participant($user) ? 'disabled' : '' ?>>
+                        <input type="number" name="away_score" min="0" value="<?= h($prediction['away_score'] ?? '') ?>" <?= !$canSubmitPrediction ? 'disabled' : '' ?>>
                     </div>
-                    <button class="button small" type="submit" <?= $locked || !is_active_participant($user) ? 'disabled' : '' ?>>Сохранить</button>
+                    <button class="button small" type="submit" <?= !$canSubmitPrediction ? 'disabled' : '' ?>>Сохранить</button>
                 </form>
             <?php endforeach; ?>
         </div>

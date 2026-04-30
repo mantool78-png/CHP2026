@@ -151,6 +151,8 @@ try {
             'teams' => db()->query('SELECT * FROM teams ORDER BY name')->fetchAll(),
             'championPrediction' => user_champion_prediction((int) $user['id']),
             'participantSummary' => is_active_participant($user) ? participant_summary((int) $user['id']) : null,
+            'freePredictionLimit' => free_prediction_limit(),
+            'freePredictionsRemaining' => free_predictions_remaining((int) $user['id']),
             'stageFilters' => $stageFilters,
             'activeStage' => $activeStage,
             'availableDates' => $availableDates,
@@ -163,15 +165,15 @@ try {
         verify_csrf();
         $user = require_user();
 
-        if (!is_active_participant($user)) {
-            flash('error', 'Прогнозы доступны после подтверждения оплаты.');
-            redirect('/dashboard');
-        }
-
         $matchId = (int) ($_POST['match_id'] ?? 0);
         $match = find_match($matchId);
         if (!$match || prediction_locked($match)) {
             flash('error', 'Прием прогнозов на этот матч уже закрыт.');
+            redirect('/dashboard');
+        }
+
+        if (!can_make_prediction($user, $matchId)) {
+            flash('error', 'Бесплатный лимит прогнозов закончился. Оплатите взнос, чтобы продолжить игру.');
             redirect('/dashboard');
         }
 

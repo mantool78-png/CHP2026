@@ -74,8 +74,19 @@ function champion_prediction_deadline(): ?string
         return $configured;
     }
 
-    $stmt = db()->query('SELECT starts_at FROM matches ORDER BY starts_at ASC LIMIT 1');
+    $stmt = db()->query(
+        "SELECT starts_at
+         FROM matches
+         WHERE stage LIKE '1/16 финала%'
+         ORDER BY starts_at ASC
+         LIMIT 1"
+    );
     $startsAt = $stmt->fetchColumn();
+
+    if (!$startsAt) {
+        $stmt = db()->query('SELECT starts_at FROM matches ORDER BY starts_at ASC LIMIT 1');
+        $startsAt = $stmt->fetchColumn();
+    }
 
     return $startsAt ?: null;
 }

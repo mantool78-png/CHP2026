@@ -275,7 +275,25 @@ if ($method === 'POST' && $path === '/admin/matches/import') {
 if ($method === 'GET' && $path === '/admin/users') {
     require_admin();
 
-    $users = db()->query(
+    $statusFilters = [
+        'all' => 'Все',
+        'pending_payment' => 'Ожидают оплаты',
+        'active' => 'Активные',
+        'blocked' => 'Заблокированные',
+    ];
+    $activeStatus = (string) ($_GET['status'] ?? 'all');
+    if (!array_key_exists($activeStatus, $statusFilters)) {
+        $activeStatus = 'all';
+    }
+
+    $where = "WHERE u.role = 'participant'";
+    $params = [];
+    if ($activeStatus !== 'all') {
+        $where .= ' AND u.payment_status = ?';
+        $params[] = $activeStatus;
+    }
+
+    $stmt = db()->prepare(
         "SELECT u.id, u.name, u.email, u.payment_status, u.created_at,
                 COALESCE(ps.predictions_count, 0) AS predictions_count,
                 COALESCE(ms.match_points, 0) AS match_points,
@@ -300,11 +318,17 @@ if ($method === 'GET' && $path === '/admin/users') {
          ) ms ON ms.user_id = u.id
          LEFT JOIN champion_predictions cp ON cp.user_id = u.id
          LEFT JOIN teams champion ON champion.id = cp.team_id
-         WHERE u.role = 'participant'
+         $where
          ORDER BY u.created_at DESC"
-    )->fetchAll();
+    );
+    $stmt->execute($params);
 
-    view('admin/users', ['users' => $users]);
+    view('admin/users', [
+        'users' => $stmt->fetchAll(),
+        'statusFilters' => $statusFilters,
+        'activeStatus' => $activeStatus,
+        'freePredictionLimit' => free_prediction_limit(),
+    ]);
     return;
 }
 

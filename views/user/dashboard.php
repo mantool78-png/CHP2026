@@ -90,9 +90,16 @@
 
 <section class="card">
     <h2>Прогноз на чемпиона</h2>
+    <?php if ($championPredictionDeadline): ?>
+        <p class="muted">
+            Дедлайн выбора чемпиона:
+            <?= h(date('d.m.Y H:i', strtotime($championPredictionDeadline))) ?> МСК.
+            <?php if ($championPredictionLocked): ?>Прием уже закрыт.<?php endif; ?>
+        </p>
+    <?php endif; ?>
     <form method="post" action="/champion" class="champion-form">
         <?= csrf_field() ?>
-        <select name="team_id" required <?= !is_active_participant($user) ? 'disabled' : '' ?>>
+        <select name="team_id" required <?= !is_active_participant($user) || $championPredictionLocked ? 'disabled' : '' ?>>
             <option value="">Выберите команду</option>
             <?php foreach ($teams as $team): ?>
                 <option value="<?= (int) $team['id'] ?>" <?= ($championPrediction['team_id'] ?? null) == $team['id'] ? 'selected' : '' ?>>
@@ -100,7 +107,7 @@
                 </option>
             <?php endforeach; ?>
         </select>
-        <button class="button small" type="submit" <?= !is_active_participant($user) ? 'disabled' : '' ?>>Сохранить</button>
+        <button class="button small" type="submit" <?= !is_active_participant($user) || $championPredictionLocked ? 'disabled' : '' ?>>Сохранить</button>
         <?php if ($championPrediction): ?>
             <span class="muted">Текущий выбор: <?= h($championPrediction['team_name']) ?></span>
         <?php endif; ?>

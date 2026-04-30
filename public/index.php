@@ -153,6 +153,8 @@ try {
             'participantSummary' => is_active_participant($user) ? participant_summary((int) $user['id']) : null,
             'freePredictionLimit' => free_prediction_limit(),
             'freePredictionsRemaining' => free_predictions_remaining((int) $user['id']),
+            'championPredictionDeadline' => champion_prediction_deadline(),
+            'championPredictionLocked' => champion_prediction_locked(),
             'stageFilters' => $stageFilters,
             'activeStage' => $activeStage,
             'availableDates' => $availableDates,
@@ -197,6 +199,11 @@ try {
 
         if (!is_active_participant($user)) {
             flash('error', 'Прогноз на чемпиона доступен после подтверждения оплаты.');
+            redirect('/dashboard');
+        }
+
+        if (champion_prediction_locked()) {
+            flash('error', 'Прием прогнозов на чемпиона уже закрыт.');
             redirect('/dashboard');
         }
 

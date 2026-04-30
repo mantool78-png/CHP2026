@@ -7,8 +7,19 @@
 </section>
 
 <section class="card">
+    <div class="filter-tabs">
+        <?php foreach ($statusFilters as $filterKey => $filterLabel): ?>
+            <a
+                class="filter-tab <?= $activeStatus === $filterKey ? 'active' : '' ?>"
+                href="/admin/users<?= $filterKey === 'all' ? '' : '?status=' . h($filterKey) ?>"
+            >
+                <?= h($filterLabel) ?>
+            </a>
+        <?php endforeach; ?>
+    </div>
+
     <?php if (!$users): ?>
-        <p class="muted">Участников пока нет.</p>
+        <p class="muted">По выбранному фильтру участников нет.</p>
     <?php else: ?>
         <div class="table-scroll">
         <table>
@@ -18,6 +29,7 @@
                     <th>Email</th>
                     <th>Статус</th>
                     <th>Прогнозы</th>
+                    <th>Бесплатно</th>
                     <th>Точные</th>
                     <th>Исходы</th>
                     <th>Чемпион</th>
@@ -35,8 +47,19 @@
                             </a>
                         </td>
                         <td><?= h($participant['email']) ?></td>
-                        <td><?= h($participant['payment_status']) ?></td>
+                        <td>
+                            <span class="status <?= h($participant['payment_status']) ?>">
+                                <?= h($participant['payment_status']) ?>
+                            </span>
+                        </td>
                         <td><?= (int) $participant['predictions_count'] ?></td>
+                        <td>
+                            <?php if ($participant['payment_status'] === 'active'): ?>
+                                <span class="muted">лимит снят</span>
+                            <?php else: ?>
+                                <?= min((int) $participant['predictions_count'], (int) $freePredictionLimit) ?> / <?= (int) $freePredictionLimit ?>
+                            <?php endif; ?>
+                        </td>
                         <td><?= (int) $participant['exact_scores_count'] ?></td>
                         <td><?= (int) $participant['outcomes_count'] ?></td>
                         <td><?= h($participant['champion_team'] ?: '—') ?></td>

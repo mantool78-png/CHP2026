@@ -8,6 +8,7 @@ return [
         'prize_pool_percent' => 90,
         'prediction_lock_minutes' => 5,
         'free_prediction_limit' => 5,
+        'champion_prediction_deadline' => '',
         'payment_instructions' => 'Реквизиты для оплаты организатор сообщит отдельно.',
         'payment_comment_hint' => 'ЧМ-2026, ваш email или имя на сайте.',
     ],

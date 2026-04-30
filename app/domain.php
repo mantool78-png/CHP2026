@@ -67,6 +67,26 @@ function free_predictions_remaining(int $userId): int
     return max(0, free_prediction_limit() - user_predictions_count($userId));
 }
 
+function champion_prediction_deadline(): ?string
+{
+    $configured = trim((string) config('app.champion_prediction_deadline', ''));
+    if ($configured !== '') {
+        return $configured;
+    }
+
+    $stmt = db()->query('SELECT starts_at FROM matches ORDER BY starts_at ASC LIMIT 1');
+    $startsAt = $stmt->fetchColumn();
+
+    return $startsAt ?: null;
+}
+
+function champion_prediction_locked(): bool
+{
+    $deadline = champion_prediction_deadline();
+
+    return $deadline !== null && time() >= strtotime($deadline);
+}
+
 function can_make_prediction(array $user, int $matchId): bool
 {
     if (($user['payment_status'] ?? '') === 'blocked') {

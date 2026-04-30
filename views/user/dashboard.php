@@ -49,7 +49,10 @@
     <section class="card participant-summary">
         <div class="participant-summary-head">
             <h2>Ваш результат</h2>
-            <a class="button small secondary" href="/leaderboard">Общая таблица</a>
+            <div class="actions compact-actions">
+                <a class="button small secondary" href="/my-scores">Мои очки</a>
+                <a class="button small secondary" href="/leaderboard">Общая таблица</a>
+            </div>
         </div>
         <div class="participant-summary-grid">
             <div>
@@ -115,7 +118,10 @@
 </section>
 
 <section class="card">
-    <h2>Прогнозы на матчи</h2>
+    <div class="participant-summary-head">
+        <h2>Прогнозы на матчи</h2>
+        <a class="button small secondary" href="/my-scores">История очков</a>
+    </div>
     <div class="filter-tabs">
         <?php foreach ($stageFilters as $filterKey => $filterLabel): ?>
             <?php

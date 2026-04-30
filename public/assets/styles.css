@@ -189,6 +189,11 @@ select:disabled {
     padding: 0;
 }
 
+.compact-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
 .auth-card {
     margin: 3rem auto;
     max-width: 460px;

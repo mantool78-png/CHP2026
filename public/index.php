@@ -163,6 +163,55 @@ try {
         return;
     }
 
+    if ($method === 'GET' && $path === '/my-scores') {
+        $user = require_user();
+
+        $stmt = db()->prepare(
+            "SELECT p.*, m.stage, m.starts_at, m.home_score AS result_home_score, m.away_score AS result_away_score,
+                    ht.name AS home_team, at.name AS away_team,
+                    COALESCE(s.points, 0) AS points,
+                    s.reason
+             FROM predictions p
+             JOIN matches m ON m.id = p.match_id
+             JOIN teams ht ON ht.id = m.home_team_id
+             JOIN teams at ON at.id = m.away_team_id
+             LEFT JOIN scores s ON s.user_id = p.user_id AND s.match_id = p.match_id
+             WHERE p.user_id = ?
+             ORDER BY m.starts_at ASC"
+        );
+        $stmt->execute([(int) $user['id']]);
+        $predictions = $stmt->fetchAll();
+
+        $totalPoints = 0;
+        $exactScores = 0;
+        $outcomes = 0;
+        foreach ($predictions as $prediction) {
+            $points = (int) $prediction['points'];
+            $totalPoints += $points;
+            if (($prediction['reason'] ?? '') === 'Точный счет') {
+                $exactScores++;
+            }
+            if (in_array($prediction['reason'] ?? '', ['Точный счет', 'Угадан исход'], true)) {
+                $outcomes++;
+            }
+        }
+
+        $championPrediction = user_champion_prediction((int) $user['id']);
+        $championPoints = (int) ($championPrediction['points'] ?? 0);
+
+        view('user/my_scores', [
+            'user' => $user,
+            'predictions' => $predictions,
+            'totalPoints' => $totalPoints + $championPoints,
+            'matchPoints' => $totalPoints,
+            'championPoints' => $championPoints,
+            'exactScores' => $exactScores,
+            'outcomes' => $outcomes,
+            'championPrediction' => $championPrediction,
+        ]);
+        return;
+    }
+
     if ($method === 'POST' && $path === '/predictions') {
         verify_csrf();
         $user = require_user();

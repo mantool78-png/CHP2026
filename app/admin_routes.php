@@ -10,11 +10,15 @@ if ($method === 'GET' && $path === '/admin') {
         'matches' => (int) db()->query('SELECT COUNT(*) FROM matches')->fetchColumn(),
     ];
 
+    $championTeamId = db()->query("SELECT setting_value FROM settings WHERE setting_key = 'champion_team_id'")->fetchColumn() ?: null;
+
     view('admin/index', [
         'stats' => $stats,
         'prizePool' => prize_pool(),
-        'teams' => db()->query('SELECT * FROM teams ORDER BY name')->fetchAll(),
-        'championTeamId' => db()->query("SELECT setting_value FROM settings WHERE setting_key = 'champion_team_id'")->fetchColumn() ?: null,
+        'teams' => teams_for_champion_select_with_current(
+            $championTeamId ? ['team_id' => (int) $championTeamId] : null
+        ),
+        'championTeamId' => $championTeamId,
     ]);
     return;
 }
@@ -24,6 +28,19 @@ if ($method === 'POST' && $path === '/admin/champion') {
     require_admin();
 
     $teamId = (int) ($_POST['team_id'] ?? 0);
+
+    if ($teamId <= 0) {
+        flash('error', 'Выберите команду из списка.');
+        redirect('/admin');
+    }
+
+    $teamStmt = db()->prepare('SELECT * FROM teams WHERE id = ? LIMIT 1');
+    $teamStmt->execute([$teamId]);
+    $teamRow = $teamStmt->fetch();
+    if (!$teamRow || !team_is_champion_pick_candidate($teamRow)) {
+        flash('error', 'Выберите реальную сборную-победителя, а не слот из расписания.');
+        redirect('/admin');
+    }
 
     $setting = db()->prepare(
         "INSERT INTO settings (setting_key, setting_value, updated_at)
@@ -74,6 +91,72 @@ if ($method === 'POST' && $path === '/admin/password') {
 
     flash('success', 'Пароль администратора изменен.');
     redirect('/admin');
+}
+
+if ($method === 'GET' && $path === '/admin/settings') {
+    require_admin();
+
+    view('admin/site_settings', [
+        'paymentInstructions' => payment_instructions(),
+        'paymentCommentHint' => payment_comment_hint(),
+        'organizerContact' => organizer_contact(),
+    ]);
+    return;
+}
+
+if ($method === 'POST' && $path === '/admin/settings') {
+    verify_csrf();
+    require_admin();
+
+    $payment = trim((string) ($_POST['payment_instructions'] ?? ''));
+    $comment = trim((string) ($_POST['payment_comment_hint'] ?? ''));
+    $organizer = trim((string) ($_POST['organizer_contact'] ?? ''));
+
+    if (mb_strlen($payment) > 8000 || mb_strlen($comment) > 500 || mb_strlen($organizer) > 1500) {
+        flash('error', 'Текст слишком длинный. Сократите и попробуйте снова.');
+        redirect('/admin/settings');
+    }
+
+    $delete = db()->prepare('DELETE FROM settings WHERE setting_key = ?');
+    $upsert = db()->prepare(
+        "INSERT INTO settings (setting_key, setting_value, updated_at)
+         VALUES (?, ?, NOW())
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = NOW()"
+    );
+
+    if ($payment === '') {
+        $delete->execute(['site_payment_instructions']);
+    } else {
+        $upsert->execute(['site_payment_instructions', $payment]);
+    }
+
+    if ($comment === '') {
+        $delete->execute(['site_payment_comment_hint']);
+    } else {
+        $upsert->execute(['site_payment_comment_hint', $comment]);
+    }
+
+    if ($organizer === '') {
+        $delete->execute(['site_organizer_contact']);
+    } else {
+        $upsert->execute(['site_organizer_contact', $organizer]);
+    }
+
+    flash('success', 'Сохранено. Пустое поле снова берёт значение из config.php (если оно там задано).');
+    redirect('/admin/settings');
+}
+
+if ($method === 'POST' && $path === '/admin/settings/reset') {
+    verify_csrf();
+    require_admin();
+
+    $stmt = db()->prepare(
+        "DELETE FROM settings WHERE setting_key IN ('site_payment_instructions', 'site_payment_comment_hint', 'site_organizer_contact')"
+    );
+    $stmt->execute();
+
+    flash('success', 'Сброшено: снова используются значения из файла config.php на сервере.');
+    redirect('/admin/settings');
 }
 
 if ($method === 'GET' && $path === '/admin/teams') {
@@ -312,7 +395,7 @@ if ($method === 'GET' && $path === '/admin/users') {
             SELECT user_id,
                    SUM(points) AS match_points,
                    SUM(CASE WHEN reason = 'Точный счет' THEN 1 ELSE 0 END) AS exact_scores_count,
-                   SUM(CASE WHEN reason IN ('Точный счет', 'Угадан исход') THEN 1 ELSE 0 END) AS outcomes_count
+                   SUM(CASE WHEN reason = 'Угадан исход' THEN 1 ELSE 0 END) AS outcomes_count
             FROM scores
             GROUP BY user_id
          ) ms ON ms.user_id = u.id
@@ -355,7 +438,7 @@ if ($method === 'GET' && $path === '/admin/user') {
             SELECT user_id,
                    SUM(points) AS match_points,
                    SUM(CASE WHEN reason = 'Точный счет' THEN 1 ELSE 0 END) AS exact_scores_count,
-                   SUM(CASE WHEN reason IN ('Точный счет', 'Угадан исход') THEN 1 ELSE 0 END) AS outcomes_count
+                   SUM(CASE WHEN reason = 'Угадан исход' THEN 1 ELSE 0 END) AS outcomes_count
             FROM scores
             GROUP BY user_id
          ) ms ON ms.user_id = u.id
@@ -393,6 +476,38 @@ if ($method === 'GET' && $path === '/admin/user') {
         'predictions' => $stmt->fetchAll(),
     ]);
     return;
+}
+
+if ($method === 'POST' && $path === '/admin/user/reset-password') {
+    verify_csrf();
+    require_admin();
+
+    $userId = (int) ($_POST['user_id'] ?? 0);
+    $newPassword = (string) ($_POST['new_password'] ?? '');
+    $confirm = (string) ($_POST['new_password_confirmation'] ?? '');
+
+    $check = db()->prepare("SELECT id FROM users WHERE id = ? AND role = 'participant' LIMIT 1");
+    $check->execute([$userId]);
+    if (!$check->fetch()) {
+        flash('error', 'Участник не найден.');
+        redirect('/admin/users');
+    }
+
+    if (strlen($newPassword) < 8) {
+        flash('error', 'Пароль должен быть не короче 8 символов.');
+        redirect('/admin/user?id=' . $userId);
+    }
+
+    if ($newPassword !== $confirm) {
+        flash('error', 'Пароль и подтверждение не совпадают.');
+        redirect('/admin/user?id=' . $userId);
+    }
+
+    $stmt = db()->prepare('UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ? AND role = ?');
+    $stmt->execute([password_hash($newPassword, PASSWORD_DEFAULT), $userId, 'participant']);
+
+    flash('success', 'Пароль участника обновлён. Сообщите ему новый пароль по доверенному каналу.');
+    redirect('/admin/user?id=' . $userId);
 }
 
 if ($method === 'POST' && $path === '/admin/users/activate') {
@@ -506,7 +621,13 @@ if ($method === 'POST' && $path === '/admin/results') {
     recalculate_scores($matchId);
 
     flash('success', 'Результат сохранен, очки пересчитаны.');
-    redirect('/admin/matches');
+    $stageKeys = ['all', 'group', 'round32', 'round16', 'quarter', 'semi', 'third', 'final'];
+    $returnStage = (string) ($_POST['return_stage'] ?? 'all');
+    if (!in_array($returnStage, $stageKeys, true)) {
+        $returnStage = 'all';
+    }
+    $query = $returnStage === 'all' ? '' : ('?stage=' . rawurlencode($returnStage));
+    redirect('/admin/matches' . $query . '#match-' . $matchId);
 }
 
 function import_row_is_header(array $row): bool

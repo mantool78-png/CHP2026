@@ -29,12 +29,12 @@
             <div>
                 <span>2</span>
                 <strong>Переведите взнос</strong>
-                <p><?= h(config('app.payment_instructions', 'Реквизиты для оплаты организатор сообщит отдельно.')) ?></p>
+                <p class="payment-instructions-text"><?= nl2br(h(payment_instructions())) ?></p>
             </div>
             <div>
                 <span>3</span>
                 <strong>Укажите комментарий</strong>
-                <p><?= h(config('app.payment_comment_hint', 'ЧМ-2026, ваш email или имя на сайте.')) ?></p>
+                <p><?= h(payment_comment_hint()) ?></p>
             </div>
             <div>
                 <span>4</span>
@@ -42,6 +42,12 @@
                 <p>Админ проверит оплату вручную, после этого лимит будет снят.</p>
             </div>
         </div>
+        <?php if (organizer_contact() !== ''): ?>
+            <div class="organizer-contact-block">
+                <p class="eyebrow">Связь с организаторами</p>
+                <p class="payment-instructions-text"><?= render_text_with_links(organizer_contact()) ?></p>
+            </div>
+        <?php endif; ?>
     </section>
 <?php endif; ?>
 
@@ -108,8 +114,7 @@
     </div>
 </section>
 
-<section class="card">
-    <h2>Прогноз на чемпиона</h2>
+<section class="card" id="champion-pick">
     <?php if ($championPredictionDeadline): ?>
         <p class="muted">
             Дедлайн выбора чемпиона:
@@ -119,6 +124,8 @@
     <?php endif; ?>
     <form method="post" action="/champion" class="champion-form">
         <?= csrf_field() ?>
+        <input type="hidden" name="return_stage" value="<?= h($activeStage) ?>">
+        <input type="hidden" name="return_date" value="<?= h($activeDate) ?>">
         <select name="team_id" required <?= !is_active_participant($user) || $championPredictionLocked ? 'disabled' : '' ?>>
             <option value="">Выберите команду</option>
             <?php foreach ($teams as $team): ?>
@@ -189,9 +196,11 @@
                     $locked = prediction_locked($match);
                     $canSubmitPrediction = !$locked && can_make_prediction($user, (int) $match['id']);
                 ?>
-                <form class="prediction-row" method="post" action="/predictions">
+                <form id="match-<?= (int) $match['id'] ?>" class="prediction-row" method="post" action="/predictions">
                     <?= csrf_field() ?>
                     <input type="hidden" name="match_id" value="<?= (int) $match['id'] ?>">
+                    <input type="hidden" name="return_stage" value="<?= h($activeStage) ?>">
+                    <input type="hidden" name="return_date" value="<?= h($activeDate) ?>">
                     <div>
                         <a class="match-title" href="/match?id=<?= (int) $match['id'] ?>">
                             <?= h($match['home_team']) ?> — <?= h($match['away_team']) ?>

@@ -33,6 +33,24 @@ try {
         return;
     }
 
+    if ($method === 'GET' && $path === '/terms') {
+        view('terms');
+        return;
+    }
+
+    if ($method === 'GET' && $path === '/privacy') {
+        view('privacy');
+        return;
+    }
+
+    if ($method === 'GET' && $path === '/prizes') {
+        view('prizes', [
+            'prizePool' => prize_pool(),
+            'distribution' => prize_distribution(),
+        ]);
+        return;
+    }
+
     if ($method === 'GET' && $path === '/register') {
         view('auth/register');
         return;
@@ -44,9 +62,15 @@ try {
         $name = trim((string) ($_POST['name'] ?? ''));
         $email = mb_strtolower(trim((string) ($_POST['email'] ?? '')));
         $password = (string) ($_POST['password'] ?? '');
+        $termsAccepted = isset($_POST['terms_accepted']);
 
         if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($password) < 8) {
             flash('error', 'Заполните имя, корректный email и пароль минимум 8 символов.');
+            redirect('/register');
+        }
+
+        if (!$termsAccepted) {
+            flash('error', 'Подтвердите согласие с правилами конкурса и обработкой персональных данных.');
             redirect('/register');
         }
 
@@ -63,7 +87,13 @@ try {
         );
         $stmt->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT)]);
 
-        $_SESSION['user_id'] = (int) db()->lastInsertId();
+        $newUserId = (int) db()->lastInsertId();
+        $_SESSION['user_id'] = $newUserId;
+        $afterInvite = complete_pending_mini_league_join_for_user($newUserId);
+        if ($afterInvite !== null) {
+            flash('notice', 'Отправьте взнос и дождитесь подтверждения админа — тогда откроется доступ к прогнозам.');
+            redirect($afterInvite);
+        }
         flash('success', 'Регистрация завершена. Отправьте взнос и дождитесь подтверждения админа.');
         redirect('/dashboard');
     }
@@ -78,16 +108,34 @@ try {
 
         $email = mb_strtolower(trim((string) ($_POST['email'] ?? '')));
         $password = (string) ($_POST['password'] ?? '');
+
+        if ($email !== '') {
+            $limit = login_rate_limit_status($email);
+            if ($limit['locked']) {
+                $minutes = max(1, (int) ceil(((int) $limit['seconds']) / 60));
+                flash('error', 'Слишком много неверных попыток входа. Попробуйте через ' . $minutes . ' мин.');
+                redirect('/login');
+            }
+        }
+
         $stmt = db()->prepare('SELECT * FROM users WHERE email = ? LIMIT 1');
         $stmt->execute([$email]);
         $user = $stmt->fetch();
 
         if (!$user || !password_verify($password, $user['password_hash'])) {
+            if ($email !== '') {
+                record_failed_login($email);
+            }
             flash('error', 'Неверный email или пароль.');
             redirect('/login');
         }
 
+        clear_failed_logins($email);
         $_SESSION['user_id'] = (int) $user['id'];
+        $afterInvite = complete_pending_mini_league_join_for_user((int) $user['id']);
+        if ($afterInvite !== null) {
+            redirect($afterInvite);
+        }
         redirect(($user['role'] ?? '') === 'admin' ? '/admin' : '/dashboard');
     }
 
@@ -145,11 +193,13 @@ try {
         );
         $stmt->execute($params);
 
+        $championPrediction = user_champion_prediction((int) $user['id']);
+
         view('user/dashboard', [
             'user' => $user,
             'matches' => $stmt->fetchAll(),
-            'teams' => db()->query('SELECT * FROM teams ORDER BY name')->fetchAll(),
-            'championPrediction' => user_champion_prediction((int) $user['id']),
+            'teams' => teams_for_champion_select_with_current($championPrediction),
+            'championPrediction' => $championPrediction,
             'participantSummary' => is_active_participant($user) ? participant_summary((int) $user['id']) : null,
             'freePredictionLimit' => free_prediction_limit(),
             'freePredictionsRemaining' => free_predictions_remaining((int) $user['id']),
@@ -192,7 +242,7 @@ try {
             if (($prediction['reason'] ?? '') === 'Точный счет') {
                 $exactScores++;
             }
-            if (in_array($prediction['reason'] ?? '', ['Точный счет', 'Угадан исход'], true)) {
+            if (($prediction['reason'] ?? '') === 'Угадан исход') {
                 $outcomes++;
             }
         }
@@ -218,16 +268,22 @@ try {
         verify_csrf();
         $user = require_user();
 
+        $returnStage = (string) ($_POST['return_stage'] ?? 'all');
+        $returnDate = (string) ($_POST['return_date'] ?? '');
         $matchId = (int) ($_POST['match_id'] ?? 0);
+        $predictionBack = static function () use ($returnStage, $returnDate, $matchId): string {
+            return dashboard_return_url($returnStage, $returnDate, $matchId > 0 ? 'match-' . $matchId : '');
+        };
+
         $match = find_match($matchId);
         if (!$match || prediction_locked($match)) {
             flash('error', 'Прием прогнозов на этот матч уже закрыт.');
-            redirect('/dashboard');
+            redirect($predictionBack());
         }
 
         if (!can_make_prediction($user, $matchId)) {
             flash('error', 'Бесплатный лимит прогнозов закончился. Оплатите взнос, чтобы продолжить игру.');
-            redirect('/dashboard');
+            redirect($predictionBack());
         }
 
         $homeScore = max(0, (int) ($_POST['home_score'] ?? 0));
@@ -241,33 +297,40 @@ try {
         $stmt->execute([(int) $user['id'], $matchId, $homeScore, $awayScore]);
 
         flash('success', 'Прогноз сохранен.');
-        redirect('/dashboard');
+        redirect($predictionBack());
     }
 
     if ($method === 'POST' && $path === '/champion') {
         verify_csrf();
         $user = require_user();
 
+        $returnStage = (string) ($_POST['return_stage'] ?? 'all');
+        $returnDate = (string) ($_POST['return_date'] ?? '');
+        $championBack = static function () use ($returnStage, $returnDate): string {
+            return dashboard_return_url($returnStage, $returnDate, 'champion-pick');
+        };
+
         if (!is_active_participant($user)) {
             flash('error', 'Прогноз на чемпиона доступен после подтверждения оплаты.');
-            redirect('/dashboard');
+            redirect($championBack());
         }
 
         if (champion_prediction_locked()) {
             flash('error', 'Прием прогнозов на чемпиона уже закрыт.');
-            redirect('/dashboard');
+            redirect($championBack());
         }
 
         $teamId = (int) ($_POST['team_id'] ?? 0);
         if ($teamId <= 0) {
             flash('error', 'Выберите команду из списка.');
-            redirect('/dashboard');
+            redirect($championBack());
         }
-        $teamCheck = db()->prepare('SELECT id FROM teams WHERE id = ? LIMIT 1');
+        $teamCheck = db()->prepare('SELECT * FROM teams WHERE id = ? LIMIT 1');
         $teamCheck->execute([$teamId]);
-        if (!$teamCheck->fetch()) {
-            flash('error', 'Указанная команда не найдена.');
-            redirect('/dashboard');
+        $teamRow = $teamCheck->fetch();
+        if (!$teamRow || !team_is_champion_pick_candidate($teamRow)) {
+            flash('error', 'Выберите страну-участницу чемпионата из списка, а не слот расписания.');
+            redirect($championBack());
         }
 
         $stmt = db()->prepare(
@@ -278,15 +341,48 @@ try {
         $stmt->execute([(int) $user['id'], $teamId]);
 
         flash('success', 'Прогноз на чемпиона сохранен.');
-        redirect('/dashboard');
+        redirect($championBack());
     }
 
     if ($method === 'GET' && $path === '/leaderboard') {
         view('leaderboard', [
             'leaders' => leaderboard(),
             'prizePool' => prize_pool(),
+            'distribution' => prize_distribution(),
         ]);
         return;
+    }
+
+    if ($method === 'GET' && $path === '/mini-leagues/join') {
+        $code = strtoupper(trim((string) ($_GET['code'] ?? '')));
+        if ($code === '' || mb_strlen($code) > 16) {
+            flash('error', 'В ссылке не указан код приглашения.');
+            redirect(current_user() ? '/mini-leagues' : '/login');
+        }
+
+        $league = find_mini_league_by_code($code);
+        if (!$league) {
+            flash('error', 'Мини-лига с таким кодом не найдена.');
+            redirect(current_user() ? '/mini-leagues' : '/login');
+        }
+
+        $user = current_user();
+        if (!$user) {
+            $_SESSION['pending_mini_league_invite'] = $code;
+            flash(
+                'notice',
+                'Войдите или зарегистрируйтесь — вы автоматически вступите в мини-лигу «' . $league['name'] . '».'
+            );
+            redirect('/login');
+        }
+
+        $stmt = db()->prepare(
+            'INSERT IGNORE INTO mini_league_members (league_id, user_id, created_at) VALUES (?, ?, NOW())'
+        );
+        $stmt->execute([(int) $league['id'], (int) $user['id']]);
+
+        flash('success', 'Вы в мини-лиге «' . $league['name'] . '».');
+        redirect('/mini-league?id=' . (int) $league['id']);
     }
 
     if ($method === 'GET' && $path === '/mini-leagues') {

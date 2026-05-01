@@ -32,7 +32,16 @@ function find_match(int $id): ?array
 
 function prediction_locked(array $match): bool
 {
-    $lockAt = strtotime($match['starts_at']) - ((int) config('app.prediction_lock_minutes') * 60);
+    if (($match['status'] ?? '') === 'finished') {
+        return true;
+    }
+
+    if ($match['home_score'] !== null && $match['away_score'] !== null) {
+        return true;
+    }
+
+    $lockAt = strtotime((string) $match['starts_at']) - ((int) config('app.prediction_lock_minutes') * 60);
+
     return time() >= $lockAt;
 }
 
@@ -225,7 +234,7 @@ function leaderboard(): array
             SELECT user_id,
                    SUM(points) AS match_points,
                    SUM(CASE WHEN reason = 'Точный счет' THEN 1 ELSE 0 END) AS exact_scores_count,
-                   SUM(CASE WHEN reason IN ('Точный счет', 'Угадан исход') THEN 1 ELSE 0 END) AS outcomes_count
+                   SUM(CASE WHEN reason = 'Угадан исход' THEN 1 ELSE 0 END) AS outcomes_count
             FROM scores
             GROUP BY user_id
          ) ms ON ms.user_id = u.id
@@ -250,7 +259,7 @@ function participant_badges(int $userId): array
     $stmt = db()->prepare(
         "SELECT
             COALESCE(SUM(CASE WHEN reason = 'Точный счет' THEN 1 ELSE 0 END), 0) AS exact_scores_count,
-            COALESCE(SUM(CASE WHEN reason IN ('Точный счет', 'Угадан исход') THEN 1 ELSE 0 END), 0) AS outcomes_count
+            COALESCE(SUM(CASE WHEN reason = 'Угадан исход' THEN 1 ELSE 0 END), 0) AS outcomes_count
          FROM scores
          WHERE user_id = ?"
     );
@@ -312,6 +321,34 @@ function prize_pool(): int
     $participants = (int) $stmt->fetchColumn();
 
     return (int) floor($participants * (int) config('app.entry_fee_rub') * ((int) config('app.prize_pool_percent') / 100));
+}
+
+function prize_distribution(): array
+{
+    $pool = prize_pool();
+    $percents = config('app.prize_distribution_percent', [30, 20, 15, 10, 7, 5, 4, 3, 3, 3]);
+    if (!is_array($percents) || !$percents) {
+        $percents = [30, 20, 15, 10, 7, 5, 4, 3, 3, 3];
+    }
+
+    $rows = [];
+    $allocated = 0;
+    foreach (array_values($percents) as $index => $percent) {
+        $percent = (int) $percent;
+        $amount = (int) floor($pool * $percent / 100);
+        $allocated += $amount;
+        $rows[] = [
+            'place' => $index + 1,
+            'percent' => $percent,
+            'amount' => $amount,
+        ];
+    }
+
+    if ($rows && $pool > $allocated) {
+        $rows[0]['amount'] += $pool - $allocated;
+    }
+
+    return $rows;
 }
 
 function participant_summary(int $userId): ?array
@@ -460,4 +497,141 @@ function mini_league_leaderboard(int $leagueId): array
     });
 
     return $rows;
+}
+
+/** Реальные сборные для прогноза на чемпиона (без слотов «N-е место группы…» из расписания). */
+function team_is_champion_pick_candidate(array $team): bool
+{
+    $name = trim((string) ($team['name'] ?? ''));
+    if ($name === '') {
+        return false;
+    }
+
+    $lower = function_exists('mb_strtolower') ? mb_strtolower($name, 'UTF-8') : strtolower($name);
+
+    if (strpos($lower, 'место') !== false && strpos($lower, 'групп') !== false) {
+        return false;
+    }
+
+    if (strpos($lower, 'победитель') !== false && strpos($lower, 'групп') !== false) {
+        return false;
+    }
+
+    if (strpos($lower, 'участник') !== false && strpos($lower, 'стыков') !== false) {
+        return false;
+    }
+
+    if (strpos($lower, 'проигравш') !== false) {
+        return false;
+    }
+
+    if (preg_match('/^\d+[\s\-–—]*[еёя]\s+место/u', $name)) {
+        return false;
+    }
+
+    return true;
+}
+
+function teams_for_champion_select(): array
+{
+    $stmt = db()->query('SELECT * FROM teams ORDER BY name');
+
+    return array_values(array_filter(
+        $stmt->fetchAll(),
+        static function (array $row): bool {
+            return team_is_champion_pick_candidate($row);
+        }
+    ));
+}
+
+/** Список для селекта + текущий выбор, даже если это старый «слот» (чтобы можно было сменить). */
+function teams_for_champion_select_with_current(?array $championPrediction): array
+{
+    $list = teams_for_champion_select();
+    if (!$championPrediction || empty($championPrediction['team_id'])) {
+        return $list;
+    }
+
+    $tid = (int) $championPrediction['team_id'];
+    foreach ($list as $row) {
+        if ((int) $row['id'] === $tid) {
+            return $list;
+        }
+    }
+
+    $stmt = db()->prepare('SELECT * FROM teams WHERE id = ? LIMIT 1');
+    $stmt->execute([$tid]);
+    $extra = $stmt->fetch();
+    if ($extra) {
+        $list[] = $extra;
+    }
+
+    usort($list, static function (array $a, array $b): int {
+        return strcmp((string) $a['name'], (string) $b['name']);
+    });
+
+    return $list;
+}
+
+/** Редирект после действий в кабинете: сохранить фильтры и прокрутку к якорю. */
+function dashboard_return_url(?string $stageKey, string $dateFilter, string $hashFragment): string
+{
+    $allowed = ['all', 'group', 'round32', 'round16', 'quarter', 'semi', 'third', 'final'];
+    $stageKey = (string) ($stageKey ?? 'all');
+    if (!in_array($stageKey, $allowed, true)) {
+        $stageKey = 'all';
+    }
+    $dateFilter = trim($dateFilter);
+    if ($dateFilter !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFilter)) {
+        $dateFilter = '';
+    }
+    $query = [];
+    if ($stageKey !== 'all') {
+        $query['stage'] = $stageKey;
+    }
+    if ($dateFilter !== '') {
+        $query['date'] = $dateFilter;
+    }
+    $qs = $query === [] ? '' : ('?' . http_build_query($query));
+    $hash = $hashFragment === '' ? '' : ('#' . preg_replace('/^#/', '', $hashFragment));
+
+    return '/dashboard' . $qs . $hash;
+}
+
+/**
+ * После входа или регистрации по ссылке-приглашению: вступить в мини-лигу и вернуть URL редиректа.
+ * Сама ссылка задаётся через $_SESSION['pending_mini_league_invite'] (код приглашения).
+ */
+function complete_pending_mini_league_join_for_user(int $userId): ?string
+{
+    $raw = $_SESSION['pending_mini_league_invite'] ?? null;
+    if (!is_string($raw) || $raw === '') {
+        return null;
+    }
+
+    $code = strtoupper(trim($raw));
+    if ($code === '' || mb_strlen($code) > 16) {
+        unset($_SESSION['pending_mini_league_invite']);
+
+        return null;
+    }
+
+    $league = find_mini_league_by_code($code);
+    if (!$league) {
+        unset($_SESSION['pending_mini_league_invite']);
+        flash('error', 'Приглашение в мини-лигу недействительно или срок истёк.');
+
+        return null;
+    }
+
+    unset($_SESSION['pending_mini_league_invite']);
+
+    $stmt = db()->prepare(
+        'INSERT IGNORE INTO mini_league_members (league_id, user_id, created_at) VALUES (?, ?, NOW())'
+    );
+    $stmt->execute([(int) $league['id'], $userId]);
+
+    flash('success', 'Вы в мини-лиге «' . $league['name'] . '».');
+
+    return '/mini-league?id=' . (int) $league['id'];
 }

@@ -34,14 +34,77 @@ a {
 }
 
 .brand {
-    font-size: 1.15rem;
+    align-items: center;
+    display: inline-flex;
+    flex-shrink: 0;
     font-weight: 800;
+}
+
+.brand-logo {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, .14), 0 4px 14px rgba(0, 0, 0, .25);
+    display: block;
+    height: clamp(3.25rem, 10vw, 4.75rem);
+    object-fit: cover;
+    width: clamp(3.25rem, 10vw, 4.75rem);
 }
 
 nav {
     align-items: center;
     display: flex;
     gap: 1rem;
+}
+
+.organizer-contact-block {
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    margin-top: 1.25rem;
+    padding: 1rem 1.25rem;
+}
+
+.organizer-contact-block .eyebrow {
+    margin-bottom: .5rem;
+}
+
+.organizer-contact-rules {
+    color: var(--muted);
+    line-height: 1.5;
+    margin: 0 0 1rem;
+}
+
+.site-footer {
+    border-top: 1px solid var(--border);
+    margin-top: 3rem;
+    padding: 2rem 0 2.5rem;
+}
+
+.site-footer .eyebrow {
+    margin-bottom: .5rem;
+}
+
+.footer-contact-text {
+    color: var(--muted);
+    font-size: .95rem;
+    line-height: 1.5;
+    max-width: 720px;
+}
+
+.footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.footer-links a {
+    color: var(--muted);
+    font-size: .95rem;
+}
+
+.footer-links a:hover {
+    color: var(--text);
 }
 
 .container {
@@ -211,13 +274,40 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
     background: #091524;
     border: 1px solid var(--border);
     border-radius: .7rem;
     color: var(--text);
     padding: .8rem .9rem;
     width: 100%;
+}
+
+textarea {
+    font-family: inherit;
+    line-height: 1.45;
+    min-height: 6rem;
+    resize: vertical;
+}
+
+.checkbox-label {
+    align-items: flex-start;
+    display: flex;
+    gap: .75rem;
+}
+
+.checkbox-label input {
+    margin-top: .25rem;
+    width: auto;
+}
+
+.checkbox-label span {
+    line-height: 1.45;
+}
+
+.admin-match-row {
+    scroll-margin-top: 6rem;
 }
 
 .alert {
@@ -286,6 +376,20 @@ select {
     margin-bottom: 0;
 }
 
+.payment-instructions-text {
+    color: var(--muted);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.admin-settings-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    margin-top: 1.25rem;
+}
+
 table {
     border-collapse: collapse;
     width: 100%;
@@ -308,6 +412,10 @@ td {
 }
 
 .match-list,
+#champion-pick {
+    scroll-margin-top: 6rem;
+}
+
 .prediction-list,
 .mini-league-list {
     display: grid;
@@ -325,6 +433,7 @@ td {
     gap: 1rem;
     grid-template-columns: 1fr auto auto;
     padding: 1rem;
+    scroll-margin-top: 6rem;
 }
 
 .mini-league-card {
@@ -567,6 +676,34 @@ td {
     margin-bottom: 0;
 }
 
+.prize-preview {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.prize-preview div {
+    background: rgba(50, 210, 150, .12);
+    border: 1px solid rgba(50, 210, 150, .35);
+    border-radius: 1rem;
+    padding: 1rem;
+}
+
+.prize-preview span {
+    color: var(--muted);
+}
+
+.prize-preview strong {
+    display: block;
+    font-size: 2rem;
+    margin: .35rem 0;
+}
+
+.prize-preview p {
+    color: var(--muted);
+    margin-bottom: 0;
+}
+
 .score-big {
     font-size: 3rem;
     font-weight: 900;
@@ -653,6 +790,7 @@ pre {
     .prediction-stats,
     .participant-summary-grid,
     .badges-grid,
+    .prize-preview,
     .payment-steps,
     .admin-form,
     .team-form,

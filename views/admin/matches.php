@@ -56,7 +56,7 @@
             </thead>
             <tbody>
                 <?php foreach ($matches as $match): ?>
-                    <tr>
+                    <tr id="match-<?= (int) $match['id'] ?>" class="admin-match-row">
                         <td><?= h($match['home_team']) ?> — <?= h($match['away_team']) ?></td>
                         <td><?= h(date('d.m.Y H:i', strtotime($match['starts_at']))) ?></td>
                         <td>
@@ -66,6 +66,7 @@
                             <form method="post" action="/admin/results" class="result-form">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="match_id" value="<?= (int) $match['id'] ?>">
+                                <input type="hidden" name="return_stage" value="<?= h($activeStage) ?>">
                                 <input type="number" min="0" name="home_score" value="<?= h($match['home_score'] ?? '') ?>" required>
                                 <span>:</span>
                                 <input type="number" min="0" name="away_score" value="<?= h($match['away_score'] ?? '') ?>" required>

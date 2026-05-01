@@ -106,8 +106,16 @@ CREATE TABLE mini_league_members (
 
 CREATE TABLE settings (
     setting_key VARCHAR(80) PRIMARY KEY,
-    setting_value VARCHAR(255) NOT NULL,
+    setting_value TEXT NOT NULL,
     updated_at DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE login_attempts (
+    attempt_key CHAR(64) PRIMARY KEY,
+    attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    locked_until DATETIME NULL,
+    last_attempt_at DATETIME NOT NULL,
+    INDEX login_attempts_last_attempt_idx (last_attempt_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO settings (setting_key, setting_value, updated_at) VALUES

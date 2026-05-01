@@ -35,7 +35,7 @@
                     <th>Чемпион</th>
                     <th>Очки</th>
                     <th>Дата</th>
-                    <th></th>
+                    <th>Действия</th>
                 </tr>
             </thead>
             <tbody>

@@ -12,16 +12,17 @@
 </section>
 
 <?php
-    $inviteUrl = '/mini-leagues';
-    $inviteText = 'Я создал мини-лигу "' . $league['name'] . '" в конкурсе прогнозов ЧМ-2026. '
-        . 'Вступай по коду ' . $league['invite_code'] . ': ' . $inviteUrl;
+    $inviteLink = absolute_url('/mini-leagues/join?code=' . rawurlencode((string) $league['invite_code']));
+    $inviteText = 'Мини-лига «' . $league['name'] . '», прогнозы ЧМ-2026.' . "\n"
+        . 'По ссылке друг войдёт или зарегистрируется — вступление в группу выполнится само:' . "\n"
+        . $inviteLink;
 ?>
 
 <section class="card invite-card">
     <h2>Пригласить друзей</h2>
-    <p class="muted">Отправьте этот текст друзьям, чтобы они вступили в вашу мини-лигу.</p>
-    <div class="invite-box" data-copy-text="<?= h($inviteText) ?>">
-        <p><?= h($inviteText) ?></p>
+    <p class="muted">Отправьте текст ниже: в WhatsApp/Telegram ссылка обычно становится кликабельной. Код приглашения по-прежнему в шапке страницы — если удобнее, можно ввести его вручную на странице «Мини-лиги».</p>
+    <div class="invite-box">
+        <p class="invite-copy-source"><?= h($inviteText) ?></p>
         <button class="button small" type="button" data-copy-button>Скопировать</button>
     </div>
 </section>
@@ -67,20 +68,46 @@
 <script>
 document.querySelectorAll('[data-copy-button]').forEach(function (button) {
     button.addEventListener('click', function () {
-        var box = button.closest('[data-copy-text]');
-        var text = box ? box.dataset.copyText : '';
+        var box = button.closest('.invite-box');
+        var source = box ? box.querySelector('.invite-copy-source') : null;
+        var text = source ? source.textContent.trim() : '';
 
-        if (navigator.clipboard && text) {
-            navigator.clipboard.writeText(text).then(function () {
-                button.textContent = 'Скопировано';
-                setTimeout(function () {
-                    button.textContent = 'Скопировать';
-                }, 1800);
+        function markCopied() {
+            var label = 'Скопировать';
+            button.textContent = 'Скопировано';
+            setTimeout(function () {
+                button.textContent = label;
+            }, 1800);
+        }
+
+        function legacyCopy() {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.setAttribute('readonly', '');
+            ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            try {
+                document.execCommand('copy');
+            } catch (e) {}
+            document.body.removeChild(ta);
+        }
+
+        if (!text) {
+            return;
+        }
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(markCopied).catch(function () {
+                legacyCopy();
+                markCopied();
             });
             return;
         }
 
-        window.prompt('Скопируйте текст приглашения:', text);
+        legacyCopy();
+        markCopied();
     });
 });
 </script>

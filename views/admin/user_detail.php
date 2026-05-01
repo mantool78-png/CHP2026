@@ -48,6 +48,53 @@
     </dl>
 </section>
 
+<?php if (($participant['payment_status'] ?? '') === 'pending_payment'): ?>
+    <section class="card">
+        <h2>Оплата</h2>
+        <p class="muted">Подтвердите, что стартовый взнос получен. После этого снимается лимит пробных прогнозов и открывается выбор чемпиона.</p>
+        <div class="table-actions">
+            <form method="post" action="/admin/users/activate">
+                <?= csrf_field() ?>
+                <input type="hidden" name="user_id" value="<?= (int) $participant['id'] ?>">
+                <button class="button" type="submit">Подтвердить оплату</button>
+            </form>
+            <form method="post" action="/admin/users/block">
+                <?= csrf_field() ?>
+                <input type="hidden" name="user_id" value="<?= (int) $participant['id'] ?>">
+                <button class="button danger" type="submit">Заблокировать</button>
+            </form>
+        </div>
+    </section>
+<?php elseif (($participant['payment_status'] ?? '') === 'active'): ?>
+    <section class="card">
+        <h2>Оплата</h2>
+        <p class="muted">Статус оплаты подтверждён, участник активен.</p>
+    </section>
+<?php elseif (($participant['payment_status'] ?? '') === 'blocked'): ?>
+    <section class="card">
+        <h2>Оплата</h2>
+        <p class="muted">Участник заблокирован.</p>
+    </section>
+<?php endif; ?>
+
+<section class="card auth-card">
+    <h2>Сброс пароля</h2>
+    <p class="muted">Рассылаем участнику только по известному каналу (Telegram и т.д.). Почта с сайта не отправляется.</p>
+    <form method="post" action="/admin/user/reset-password" class="stack">
+        <?= csrf_field() ?>
+        <input type="hidden" name="user_id" value="<?= (int) $participant['id'] ?>">
+        <label>
+            Новый пароль
+            <input type="password" name="new_password" required minlength="8" autocomplete="new-password">
+        </label>
+        <label>
+            Повторите пароль
+            <input type="password" name="new_password_confirmation" required minlength="8" autocomplete="new-password">
+        </label>
+        <button class="button secondary" type="submit">Установить новый пароль</button>
+    </form>
+</section>
+
 <section class="card">
     <h2>Прогнозы участника</h2>
     <?php if (!$predictions): ?>

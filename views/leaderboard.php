@@ -1,9 +1,26 @@
+<?php $distribution = $distribution ?? prize_distribution(); ?>
 <section class="page-heading">
     <div>
         <p class="eyebrow">Турнирная таблица</p>
         <h1>Лидеры конкурса</h1>
     </div>
     <div class="pill">Призовой фонд: <?= number_format($prizePool, 0, ',', ' ') ?> ₽</div>
+</section>
+
+<section class="card">
+    <div class="participant-summary-head">
+        <h2>Призы топ-10</h2>
+        <a class="button small secondary" href="/prizes">Подробнее</a>
+    </div>
+    <div class="prize-preview">
+        <?php foreach (array_slice($distribution, 0, 3) as $row): ?>
+            <div>
+                <span><?= (int) $row['place'] ?> место</span>
+                <strong><?= (int) $row['percent'] ?>%</strong>
+                <p><?= number_format((int) $row['amount'], 0, ',', ' ') ?> ₽ сейчас</p>
+            </div>
+        <?php endforeach; ?>
+    </div>
 </section>
 
 <section class="card">

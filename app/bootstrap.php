@@ -5,7 +5,22 @@ declare(strict_types=1);
 $config = require dirname(__DIR__) . '/config/config.php';
 date_default_timezone_set($config['app']['timezone']);
 
+$sessionSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || (isset($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443)
+    || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
 session_name('chp2026_session');
+if (PHP_VERSION_ID >= 70300) {
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'domain' => '',
+        'secure' => $sessionSecure,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+} else {
+    session_set_cookie_params(0, '/', '', $sessionSecure, true);
+}
 session_start();
 
 function config(?string $key = null, $default = null)
@@ -78,6 +93,19 @@ function redirect(string $to): void
 {
     header('Location: ' . $to);
     exit;
+}
+
+/** Абсолютный URL текущего сайта (для ссылок в приглашениях, писем и т.п.). */
+function absolute_url(string $path): string
+{
+    $path = ($path !== '' && $path[0] === '/') ? $path : '/' . $path;
+    $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (isset($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443)
+        || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+    $scheme = $https ? 'https' : 'http';
+
+    return $scheme . '://' . $host . $path;
 }
 
 function view(string $template, array $data = []): void
@@ -166,6 +194,127 @@ function is_active_participant(?array $user = null): bool
 {
     $user = $user ?: current_user();
     return $user && ($user['payment_status'] ?? '') === 'active';
+}
+
+/** Текст из таблицы settings; если ключа нет — значение из config.php. */
+function site_text_setting(string $dbKey, string $configPath, string $default): string
+{
+    static $cache = [];
+
+    if (!array_key_exists($dbKey, $cache)) {
+        $stmt = db()->prepare('SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1');
+        $stmt->execute([$dbKey]);
+        $row = $stmt->fetch();
+        $cache[$dbKey] = $row !== false ? (string) $row['setting_value'] : false;
+    }
+
+    if ($cache[$dbKey] !== false) {
+        return (string) $cache[$dbKey];
+    }
+
+    return (string) config($configPath, $default);
+}
+
+function payment_instructions(): string
+{
+    return site_text_setting(
+        'site_payment_instructions',
+        'app.payment_instructions',
+        'Реквизиты для оплаты организатор сообщит отдельно.'
+    );
+}
+
+function payment_comment_hint(): string
+{
+    return site_text_setting(
+        'site_payment_comment_hint',
+        'app.payment_comment_hint',
+        'ЧМ-2026, ваш email или имя на сайте.'
+    );
+}
+
+/** Связь с организаторами (Telegram, email и т.д.). Пусто — блок на сайте не показывается. */
+function organizer_contact(): string
+{
+    return site_text_setting(
+        'site_organizer_contact',
+        'app.organizer_contact',
+        ''
+    );
+}
+
+function render_text_with_links(string $value): string
+{
+    $escaped = h($value);
+    $linked = preg_replace_callback(
+        '~https?://[^\s<]+~u',
+        static function (array $matches): string {
+            $url = $matches[0];
+            return '<a class="table-link" href="' . $url . '" target="_blank" rel="noopener">' . $url . '</a>';
+        },
+        $escaped
+    );
+
+    return nl2br($linked ?? $escaped);
+}
+
+function client_ip(): string
+{
+    return substr((string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 0, 45);
+}
+
+function login_attempt_key(string $email): string
+{
+    return hash('sha256', mb_strtolower(trim($email)) . '|' . client_ip());
+}
+
+function login_rate_limit_status(string $email): array
+{
+    $stmt = db()->prepare('SELECT * FROM login_attempts WHERE attempt_key = ? LIMIT 1');
+    $stmt->execute([login_attempt_key($email)]);
+    $attempt = $stmt->fetch();
+
+    if (!$attempt || empty($attempt['locked_until'])) {
+        return ['locked' => false, 'seconds' => 0];
+    }
+
+    $seconds = strtotime((string) $attempt['locked_until']) - time();
+    return [
+        'locked' => $seconds > 0,
+        'seconds' => max(0, $seconds),
+    ];
+}
+
+function record_failed_login(string $email): void
+{
+    $key = login_attempt_key($email);
+    $stmt = db()->prepare('SELECT attempts, last_attempt_at FROM login_attempts WHERE attempt_key = ? LIMIT 1');
+    $stmt->execute([$key]);
+    $attempt = $stmt->fetch();
+
+    $now = time();
+    $attempts = 1;
+    if ($attempt && strtotime((string) $attempt['last_attempt_at']) > ($now - 15 * 60)) {
+        $attempts = min(255, (int) $attempt['attempts'] + 1);
+    }
+
+    $lockedUntil = $attempts >= 5 ? date('Y-m-d H:i:s', $now + 15 * 60) : null;
+
+    $upsert = db()->prepare(
+        "INSERT INTO login_attempts (attempt_key, attempts, locked_until, last_attempt_at)
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+             attempts = VALUES(attempts),
+             locked_until = VALUES(locked_until),
+             last_attempt_at = VALUES(last_attempt_at)"
+    );
+    $upsert->execute([$key, $attempts, $lockedUntil, date('Y-m-d H:i:s', $now)]);
+}
+
+function clear_failed_logins(string $email): void
+{
+    $stmt = db()->prepare('DELETE FROM login_attempts WHERE attempt_key = ?');
+    $stmt->execute([login_attempt_key($email)]);
 }
 
 require __DIR__ . '/domain.php';

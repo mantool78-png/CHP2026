@@ -8,13 +8,39 @@ $path = path();
 $method = request_method();
 
 try {
+    if ($method === 'GET' && $path === '/robots.txt') {
+        header('Content-Type: text/plain; charset=UTF-8');
+        $siteOrigin = preg_replace('#/+$#', '', absolute_url('/'));
+        echo "User-agent: *\nAllow: /\n\nSitemap: {$siteOrigin}/sitemap.xml\n";
+        return;
+    }
+
+    if ($method === 'GET' && $path === '/sitemap.xml') {
+        header('Content-Type: application/xml; charset=UTF-8');
+        $siteOrigin = preg_replace('#/+$#', '', absolute_url('/'));
+        $today = gmdate('Y-m-d');
+        $publicPaths = ['/', '/rules', '/terms', '/privacy', '/prizes', '/tournament', '/matches', '/rating', '/faq', '/register', '/login'];
+        echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+        echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
+        foreach ($publicPaths as $suffix) {
+            $locRaw = $siteOrigin . ($suffix === '/' ? '/' : $suffix);
+            $loc = htmlspecialchars($locRaw, ENT_XML1 | ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $priority = $suffix === '/' ? '1.0' : '0.8';
+            echo "<url><loc>{$loc}</loc><lastmod>{$today}</lastmod><changefreq>weekly</changefreq><priority>{$priority}</priority></url>";
+        }
+        echo '</urlset>';
+        return;
+    }
+
     if ($method === 'GET' && $path === '/') {
         $nextMatchStmt = db()->query(
-            "SELECT m.*, ht.name AS home_team, at.name AS away_team
+            "SELECT m.*, ht.name AS home_team, at.name AS away_team, ht.code AS home_code, at.code AS away_code
              FROM matches m
              JOIN teams ht ON ht.id = m.home_team_id
              JOIN teams at ON at.id = m.away_team_id
              WHERE m.starts_at > NOW()
+               AND m.home_team_id IS NOT NULL
+               AND m.away_team_id IS NOT NULL
              ORDER BY m.starts_at ASC
              LIMIT 1"
         );
@@ -24,22 +50,49 @@ try {
             'leaders' => array_slice(leaderboard(), 0, 10),
             'prizePool' => prize_pool(),
             'nextMatch' => $nextMatchStmt->fetch() ?: null,
+            'registrationStats' => contest_registration_stats(),
+            'pageTitle' => 'Лига прогнозов на матчи ЧМ-2026 — iPhone 17e и денежные призы',
+            'pageDescription' => 'Конкурс прогнозов на матчи ЧМ-2026: первые 5 прогнозов бесплатно, главный приз iPhone 17e, денежные призы за 2–5 места. Турнир прогнозистов с прозрачными правилами.',
         ]);
         return;
     }
 
     if ($method === 'GET' && $path === '/rules') {
-        view('rules');
+        view('rules', [
+            'pageTitle' => 'Правила конкурса прогнозов на ЧМ-2026',
+            'pageDescription' => 'Правила конкурса прогнозов на футбол: начисление очков за исход и точный счёт, бесплатные прогнозы, дедлайны и акция «Приведи друга».',
+        ]);
         return;
     }
 
     if ($method === 'GET' && $path === '/terms') {
-        view('terms');
+        view('terms', [
+            'pageTitle' => 'Условия участия и взнос',
+            'pageDescription' => 'Юридические условия участия в конкурсе прогнозов: взнос, подтверждение платежа, доступ к игре после оплаты и ответственность сторон.',
+        ]);
         return;
     }
 
     if ($method === 'GET' && $path === '/privacy') {
-        view('privacy');
+        view('privacy', [
+            'pageTitle' => 'Персональные данные и конфиденциальность',
+            'pageDescription' => 'Какие данные участников мы собираем, как храним аккаунт и платёжную информацию и как связаться по вопросам персональных данных.',
+        ]);
+        return;
+    }
+
+    if ($method === 'GET' && $path === '/tournament') {
+        $tab = (string) ($_GET['tab'] ?? 'groups');
+        if (!in_array($tab, ['groups', 'playoff'], true)) {
+            $tab = 'groups';
+        }
+        view('tournament', [
+            'tournamentTab' => $tab,
+            'groupStandings' => get_group_standings(),
+            'playoffRounds' => tournament_playoff_by_stage(tournament_playoff_matches()),
+            'pageTitle' => 'Турнир ЧМ-2026: группы и плей-офф',
+            'pageDescription' => 'Турнирные таблицы группового этапа и сетка плей-офф чемпионата мира — для прогнозов и ориентира по расписанию.',
+        ]);
         return;
     }
 
@@ -47,25 +100,53 @@ try {
         view('prizes', [
             'prizePool' => prize_pool(),
             'distribution' => prize_distribution(),
+            'pageTitle' => 'Призы чемпионата прогнозов ЧМ-2026 — iPhone и деньги',
+            'pageDescription' => 'Призы конкурса прогнозов: Apple iPhone 17e 256 GB победителю и фиксированные денежные выплаты местам 2–5. Прозрачный призовой фонд.',
+        ]);
+        return;
+    }
+
+    if ($method === 'GET' && $path === '/faq') {
+        view('faq', [
+            'pageTitle' => 'Частые вопросы — конкурс прогнозов на ЧМ-2026',
+            'pageDescription' => 'FAQ: взнос, бесплатные прогнозы, начисление очков, призы, организатор и акция «Приведи друга» в конкурсе прогнозов на чемпионат мира 2026.',
+        ]);
+        return;
+    }
+
+    if ($method === 'GET' && $path === '/matches') {
+        view('matches', [
+            'matches' => upcoming_matches(),
+            'pageTitle' => 'Расписание матчей ЧМ-2026 — прогнозы на чемпионат мира',
+            'pageDescription' => 'Расписание матчей чемпионата мира по футболу 2026 для конкурса прогнозов: даты, время МСК и ссылки на прогнозы.',
         ]);
         return;
     }
 
     if ($method === 'GET' && $path === '/register') {
-        view('auth/register');
+        view('auth/register', [
+            'pageTitle' => 'Регистрация — конкурс прогнозов ЧМ-2026',
+            'pageDescription' => 'Создай аккаунт участника, прими правила и начни бесплатные прогнозы до подтверждения взноса.',
+        ]);
         return;
     }
 
     if ($method === 'POST' && $path === '/register') {
         verify_csrf();
 
-        $name = trim((string) ($_POST['name'] ?? ''));
+        $name = normalize_participant_display_name((string) ($_POST['name'] ?? ''));
         $email = mb_strtolower(trim((string) ($_POST['email'] ?? '')));
         $password = (string) ($_POST['password'] ?? '');
+        $passwordConfirmation = (string) ($_POST['password_confirmation'] ?? '');
         $termsAccepted = isset($_POST['terms_accepted']);
 
-        if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($password) < 8) {
-            flash('error', 'Заполните имя, корректный email и пароль минимум 8 символов.');
+        if ($name === '' || mb_strlen($name) < 2 || !filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($password) < 8) {
+            flash('error', 'Укажите имя и фамилию или ник (минимум 2 символа), корректный email и пароль минимум 8 символов.');
+            redirect('/register');
+        }
+
+        if ($password !== $passwordConfirmation) {
+            flash('error', 'Пароль и подтверждение не совпадают.');
             redirect('/register');
         }
 
@@ -81,6 +162,11 @@ try {
             redirect('/register');
         }
 
+        if (participant_display_name_taken($name)) {
+            flash('error', 'Такое имя уже занято в таблице. Укажите фамилию, инициалы или другой ник — имена участников не должны повторяться.');
+            redirect('/register');
+        }
+
         $stmt = db()->prepare(
             "INSERT INTO users (name, email, password_hash, role, payment_status, created_at, updated_at)
              VALUES (?, ?, ?, 'participant', 'pending_payment', NOW(), NOW())"
@@ -89,17 +175,23 @@ try {
 
         $newUserId = (int) db()->lastInsertId();
         $_SESSION['user_id'] = $newUserId;
+
+        mail_send_registration_welcome($email, $name);
+
         $afterInvite = complete_pending_mini_league_join_for_user($newUserId);
         if ($afterInvite !== null) {
             flash('notice', 'Отправьте взнос и дождитесь подтверждения админа — тогда откроется доступ к прогнозам.');
             redirect($afterInvite);
         }
         flash('success', 'Регистрация завершена. Отправьте взнос и дождитесь подтверждения админа.');
-        redirect('/dashboard');
+        redirect('/#home-predictions');
     }
 
     if ($method === 'GET' && $path === '/login') {
-        view('auth/login');
+        view('auth/login', [
+            'pageTitle' => 'Вход для участников',
+            'pageDescription' => 'Авторизуйся для просмотра прогнозов, результатов матчей и участия в мини-лигах конкурса ЧМ-2026.',
+        ]);
         return;
     }
 
@@ -145,6 +237,24 @@ try {
         redirect('/');
     }
 
+    if ($method === 'POST' && $path === '/payment-receipt') {
+        verify_csrf();
+        $user = require_user();
+        if (!user_can_upload_payment_receipt($user)) {
+            flash('error', 'Загрузка чека сейчас недоступна.');
+            redirect('/dashboard');
+        }
+        try {
+            save_payment_receipt_from_upload((int) $user['id'], $_FILES['receipt'] ?? null);
+            flash('success', 'Чек отправлен. Дождитесь подтверждения оплаты — организаторы проверят платёж и откроют полный доступ.');
+        } catch (InvalidArgumentException $e) {
+            flash('error', $e->getMessage());
+        } catch (Throwable $e) {
+            flash('error', 'Не удалось сохранить чек. Попробуйте позже.');
+        }
+        redirect('/dashboard');
+    }
+
     if ($method === 'GET' && $path === '/dashboard') {
         $user = require_user();
 
@@ -184,7 +294,7 @@ try {
 
         $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
         $stmt = db()->prepare(
-            "SELECT m.*, ht.name AS home_team, at.name AS away_team
+            "SELECT m.*, ht.name AS home_team, at.name AS away_team, ht.code AS home_code, at.code AS away_code
              FROM matches m
              JOIN teams ht ON ht.id = m.home_team_id
              JOIN teams at ON at.id = m.away_team_id
@@ -210,6 +320,11 @@ try {
             'activeStage' => $activeStage,
             'availableDates' => $availableDates,
             'activeDate' => $activeDate,
+            'paymentReceipt' => (($user['payment_status'] ?? '') === 'pending_payment')
+                ? payment_receipt_for_user((int) $user['id'])
+                : null,
+            'pageTitle' => 'Личный кабинет — мои прогнозы',
+            'pageDescription' => 'Список матчей, сохранённые прогнозы на ЧМ-2026 и выбор победителя турнира в конкурсном кабинете.',
         ]);
         return;
     }
@@ -260,6 +375,8 @@ try {
             'outcomes' => $outcomes,
             'championPrediction' => $championPrediction,
             'badges' => participant_badges((int) $user['id']),
+            'pageTitle' => 'Мои очки и история прогнозов',
+            'pageDescription' => 'Сводка набранных очков, статистика угаданных исходов и сохранённые прогнозы чемпиона турнира.',
         ]);
         return;
     }
@@ -270,9 +387,10 @@ try {
 
         $returnStage = (string) ($_POST['return_stage'] ?? 'all');
         $returnDate = (string) ($_POST['return_date'] ?? '');
+        $returnTo = (string) ($_POST['return_to'] ?? '');
         $matchId = (int) ($_POST['match_id'] ?? 0);
-        $predictionBack = static function () use ($returnStage, $returnDate, $matchId): string {
-            return dashboard_return_url($returnStage, $returnDate, $matchId > 0 ? 'match-' . $matchId : '');
+        $predictionBack = static function () use ($returnTo, $returnStage, $returnDate, $matchId): string {
+            return prediction_save_return_url($returnTo, $returnStage, $returnDate, $matchId);
         };
 
         $match = find_match($matchId);
@@ -345,10 +463,17 @@ try {
     }
 
     if ($method === 'GET' && $path === '/leaderboard') {
+        header('Location: /rating', true, 301);
+        exit;
+    }
+
+    if ($method === 'GET' && $path === '/rating') {
         view('leaderboard', [
             'leaders' => leaderboard(),
             'prizePool' => prize_pool(),
             'distribution' => prize_distribution(),
+            'pageTitle' => 'Рейтинг участников — таблица конкурса прогнозов ЧМ-2026',
+            'pageDescription' => 'Турнирная таблица прогнозистов: очки за матчи ЧМ-2026, точные счета и прогноз на чемпиона. Соревнование за iPhone и денежные призы.',
         ]);
         return;
     }
@@ -376,13 +501,12 @@ try {
             redirect('/login');
         }
 
-        $stmt = db()->prepare(
-            'INSERT IGNORE INTO mini_league_members (league_id, user_id, created_at) VALUES (?, ?, NOW())'
-        );
-        $stmt->execute([(int) $league['id'], (int) $user['id']]);
-
-        flash('success', 'Вы в мини-лиге «' . $league['name'] . '».');
-        redirect('/mini-league?id=' . (int) $league['id']);
+        view('user/mini_league_join_confirm', [
+            'league' => $league,
+            'pageTitle' => 'Вступление в мини-лигу',
+            'pageDescription' => 'Подтвердите вступление в группу «' . $league['name'] . '».',
+        ]);
+        return;
     }
 
     if ($method === 'GET' && $path === '/mini-leagues') {
@@ -390,6 +514,8 @@ try {
 
         view('user/mini_leagues', [
             'leagues' => user_mini_leagues((int) $user['id']),
+            'pageTitle' => 'Мои мини-лиги',
+            'pageDescription' => 'Список ваших групп конкурса с друзьями: коды приглашений и переход к отдельным рейтингам.',
         ]);
         return;
     }
@@ -436,7 +562,7 @@ try {
         );
         $stmt->execute([(int) $league['id'], (int) $user['id']]);
 
-        flash('success', 'Вы вступили в мини-лигу.');
+        flash('success', 'Вы в мини-лиге «' . $league['name'] . '».');
         redirect('/mini-league?id=' . (int) $league['id']);
     }
 
@@ -454,6 +580,8 @@ try {
         view('user/mini_league', [
             'league' => $league,
             'leaders' => mini_league_leaderboard($leagueId),
+            'pageTitle' => '«' . $league['name'] . '» · мини-лига',
+            'pageDescription' => 'Отдельный рейтинг участников вашей группы после матчей ЧМ-2026.',
         ]);
         return;
     }
@@ -468,13 +596,6 @@ try {
         }
 
         $predictions = [];
-        $predictionStats = [
-            'total' => 0,
-            'home' => 0,
-            'draw' => 0,
-            'away' => 0,
-            'popularScores' => [],
-        ];
         if (match_started($match)) {
             $stmt = db()->prepare(
                 "SELECT p.*, u.name
@@ -485,24 +606,16 @@ try {
             );
             $stmt->execute([$matchId]);
             $predictions = $stmt->fetchAll();
-
-            $scoreCounts = [];
-            foreach ($predictions as $prediction) {
-                $predictionStats['total']++;
-                $outcome = match_outcome((int) $prediction['home_score'], (int) $prediction['away_score']);
-                $predictionStats[$outcome]++;
-
-                $scoreKey = (int) $prediction['home_score'] . ':' . (int) $prediction['away_score'];
-                $scoreCounts[$scoreKey] = ($scoreCounts[$scoreKey] ?? 0) + 1;
-            }
-            arsort($scoreCounts);
-            $predictionStats['popularScores'] = array_slice($scoreCounts, 0, 5, true);
         }
+
+        $predictionStats = match_prediction_distribution($matchId);
 
         view('match', [
             'match' => $match,
             'predictions' => $predictions,
             'predictionStats' => $predictionStats,
+            'pageTitle' => $match['home_team'] . ' — ' . $match['away_team'] . ' · прогнозы ЧМ-2026',
+            'pageDescription' => $match['stage'] . ': ' . $match['home_team'] . ' — ' . $match['away_team'] . '. Прогнозы и голосование участников после стартового свистка.',
         ]);
         return;
     }

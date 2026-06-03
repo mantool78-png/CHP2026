@@ -14,7 +14,7 @@
 <?php
     $inviteLink = absolute_url('/mini-leagues/join?code=' . rawurlencode((string) $league['invite_code']));
     $inviteText = 'Мини-лига «' . $league['name'] . '», прогнозы ЧМ-2026.' . "\n"
-        . 'По ссылке друг войдёт или зарегистрируется — вступление в группу выполнится само:' . "\n"
+        . 'Откройте ссылку (войдите при необходимости) и подтвердите кнопкой «Вступить»:' . "\n"
         . $inviteLink;
 ?>
 

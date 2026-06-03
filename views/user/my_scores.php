@@ -72,7 +72,7 @@
                     <?php foreach ($predictions as $prediction): ?>
                         <tr>
                             <td>
-                                <a class="table-link" href="/match?id=<?= (int) $prediction['match_id'] ?>">
+                                <a class="table-link" href="<?= h(match_url((int) $prediction['match_id'], 'my-scores')) ?>">
                                     <?= h($prediction['home_team']) ?> — <?= h($prediction['away_team']) ?>
                                 </a>
                                 <div class="muted"><?= h($prediction['stage']) ?></div>

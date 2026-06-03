@@ -8,6 +8,7 @@
         <a class="button small secondary" href="/admin/settings">Тексты и контакты</a>
         <a class="button small secondary" href="/admin/matches">Матчи</a>
         <a class="button small secondary" href="/admin/teams">Команды</a>
+        <a class="button small secondary" href="/admin/mini-leagues">Мини-лиги</a>
         <a class="button small secondary" href="/admin/password">Сменить пароль</a>
     </div>
 </section>
@@ -40,9 +41,92 @@
         <strong><?= (int) $stats['pending'] ?></strong>
     </div>
     <div class="card stat">
-        <span>Призовой фонд</span>
+        <span>Денежные призы (2–5 м.)</span>
         <strong><?= number_format($prizePool, 0, ',', ' ') ?> ₽</strong>
     </div>
+</section>
+
+<section class="card admin-revenue-card">
+    <h2>Собранные взносы</h2>
+    <p class="admin-revenue-total">
+        <strong class="admin-revenue-sum"><?= number_format((int) $collectedFeesRub, 0, ',', ' ') ?> ₽</strong>
+    </p>
+    <p class="muted">Сумма по всем записям в таблице платежей со статусом <code>confirmed</code> (включая доли по акции «Приведи друга»).</p>
+</section>
+
+<section class="card">
+    <h2>Оплатили участие (<?= count($activeParticipantsTable) ?>)</h2>
+    <?php if (!$activeParticipantsTable): ?>
+        <p class="muted">Пока никто не активирован.</p>
+    <?php else: ?>
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Участник</th>
+                        <th>Email</th>
+                        <th>Сумма</th>
+                        <th>Подтверждено</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($activeParticipantsTable as $row): ?>
+                        <tr>
+                            <td>
+                                <a class="table-link" href="/admin/user?id=<?= (int) $row['id'] ?>"><?= h($row['name']) ?></a>
+                            </td>
+                            <td><?= h($row['email']) ?></td>
+                            <td>
+                                <?php if ($row['payment_amount_rub'] !== null && $row['payment_amount_rub'] !== ''): ?>
+                                    <?= number_format((int) $row['payment_amount_rub'], 0, ',', ' ') ?> ₽
+                                <?php else: ?>
+                                    <span class="muted">—</span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php if (!empty($row['confirmed_at'])): ?>
+                                    <?= h(date('d.m.Y H:i', strtotime((string) $row['confirmed_at']))) ?>
+                                <?php else: ?>
+                                    <span class="muted">—</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
+</section>
+
+<section class="card">
+    <h2>Зарегистрированы, взнос не подтверждён (<?= count($pendingParticipantsTable) ?>)</h2>
+    <?php if (!$pendingParticipantsTable): ?>
+        <p class="muted">Нет участников в ожидании оплаты (остальные активны или заблокированы).</p>
+    <?php else: ?>
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Участник</th>
+                        <th>Email</th>
+                        <th>Регистрация</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($pendingParticipantsTable as $row): ?>
+                        <tr>
+                            <td>
+                                <a class="table-link" href="/admin/user?id=<?= (int) $row['id'] ?>"><?= h($row['name']) ?></a>
+                            </td>
+                            <td><?= h($row['email']) ?></td>
+                            <td><?= h(date('d.m.Y H:i', strtotime((string) $row['created_at']))) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <p class="muted">Подтверждение оплаты и блокировка — в разделе <a class="table-link" href="/admin/users">Участники</a>.</p>
+    <?php endif; ?>
 </section>
 
 <section class="card">

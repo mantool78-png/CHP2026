@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 48" role="img" aria-hidden="true">
+  <defs>
+    <clipPath id="wave-GHA">
+      <path d="M1,6 C12,2 24,7 36,4 C48,1 60,6 71,4 L71,44 C60,47 48,42 36,45 C24,48 12,43 1,44 Z"/>
+    </clipPath>
+    <filter id="sh-GHA" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="1.2" stdDeviation="0.9" flood-color="#000" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <g clip-path="url(#wave-GHA)" filter="url(#sh-GHA)" transform="rotate(-1.5 36 24)">
+    <image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAADVBAMAAADUYjTdAAAAG1BMVEX80RbOESYAaz8AAACMdAvmvhNQQga3mA8uJgPWQ3EUAAACEUlEQVR42u3YQWrCQBhA4YBJdNsr9ATCb9WlkAsIQnBZkO6FbFwKUnrt1lpbjWl0IeQJb5auPhjf5J9JnuArEShQoECBAgUKFChQoECBAgUKFChQoECBAgUKFChQoECBAgUKFChQoECBAgUKFChQ4KMB77yyecJe6QwOHGzhwMULHFiM4MDdlO3LItgZpxHsjAcR7IwXEeyMiwh2xquIMTxidsbpHkjOON8DX9kRszMu9sARO2J2xvG9uL7+AbhmR0zOuHcADrHA6gCcsCMmZxzBzrh/BK7ZEZMyLuOG9db5x7d9dftpznbXfNOO59f0GrDz/2PV7uv+0M5Wbb4x4ILSusmI+8nmf98H4665Im9w6yZjLqDLZt877DZ3scHEOeZ0oWaaEjYj3LDJtOt7vzY1THFDa4ne4MvDcIYDDs6BWxxwcQ7kvcEV7IiTpF4xzZfVz8E5O2JexoM6cMuOmJcx/lt8HPvHRSDf4H4jXveZGad/M0KJzDg/+eMVxKf0xckQ+DMasjKuTofAEviUvjo7WQpexucvgYdXQ9SNpFZFTrt25vX/XAXLuFd/KNo/KA1ZEc8uTu4JKuKLl8ANKuOGl8CvTSZFPGv6PHMyzhtfApecjNPmn+8zzzzDl0CBAgUKFChQoECBAgUKFChQoECBAgUKFChQoECBAgUKFChQoECBAgUKFChQoECBAh8N+AmgJKE1HUP/IAAAAABJRU5ErkJggg==" x="0" y="0" width="72" height="48" preserveAspectRatio="xMidYMid slice"/>
+  </g>
+  <path d="M1,6 C12,2 24,7 36,4 C48,1 60,6 71,4" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="0.6"/>
+  <path d="M1,44 C12,47 24,42 36,45 C48,48 60,43 71,44" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="0.6"/>
+</svg>

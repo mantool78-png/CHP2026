@@ -23,10 +23,25 @@ CREATE TABLE payments (
     CONSTRAINT payments_admin_fk FOREIGN KEY (confirmed_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE payment_receipts (
+    user_id INT UNSIGNED NOT NULL PRIMARY KEY,
+    file_path VARCHAR(255) NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    mime_type VARCHAR(127) NOT NULL,
+    size_bytes INT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    CONSTRAINT payment_receipts_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE teams (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(120) NOT NULL UNIQUE,
     code VARCHAR(12) NULL UNIQUE,
+    group_name CHAR(1) NULL COMMENT 'Устарело: группы задаются в app/worldcup2026_groups.php',
+    fifa_rank SMALLINT UNSIGNED NULL,
+    brief_note VARCHAR(600) NULL,
+    form_last5 VARCHAR(40) NULL,
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -34,8 +49,11 @@ CREATE TABLE teams (
 CREATE TABLE matches (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     stage VARCHAR(120) NOT NULL,
-    home_team_id INT UNSIGNED NOT NULL,
-    away_team_id INT UNSIGNED NOT NULL,
+    bracket_code VARCHAR(20) NULL,
+    home_team_id INT UNSIGNED NULL,
+    away_team_id INT UNSIGNED NULL,
+    placeholder_home VARCHAR(50) NULL,
+    placeholder_away VARCHAR(50) NULL,
     starts_at DATETIME NOT NULL,
     home_score TINYINT UNSIGNED NULL,
     away_score TINYINT UNSIGNED NULL,
@@ -58,6 +76,15 @@ CREATE TABLE predictions (
     UNIQUE KEY predictions_user_match_unique (user_id, match_id),
     CONSTRAINT predictions_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT predictions_match_fk FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE prediction_reminder_log (
+    user_id INT UNSIGNED NOT NULL,
+    match_id INT UNSIGNED NOT NULL,
+    sent_at DATETIME NOT NULL,
+    PRIMARY KEY (user_id, match_id),
+    CONSTRAINT prediction_reminder_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT prediction_reminder_match_fk FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE scores (
@@ -119,8 +146,9 @@ CREATE TABLE login_attempts (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO settings (setting_key, setting_value, updated_at) VALUES
-('entry_fee_rub', '1000', NOW()),
-('prize_pool_percent', '90', NOW()),
+('entry_fee_rub', '1500', NOW()),
+('referral_discount_rub', '500', NOW()),
+('referral_discount_limit_per_account', '1', NOW()),
 ('prediction_lock_minutes', '5', NOW()),
 ('champion_team_id', '', NOW());
 

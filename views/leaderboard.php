@@ -1,23 +1,35 @@
 <?php $distribution = $distribution ?? prize_distribution(); ?>
 <section class="page-heading">
     <div>
-        <p class="eyebrow">Турнирная таблица</p>
-        <h1>Лидеры конкурса</h1>
+        <p class="eyebrow">Рейтинг прогнозистов</p>
+        <h1>Таблица участников</h1>
+        <p class="lead muted">
+            Общий рейтинг конкурса прогнозов на чемпионат мира 2026: очки за матчи и прогноз на чемпиона.
+            Правила начисления&nbsp;&mdash; в <a class="table-link" href="/rules">правилах</a>.
+        </p>
     </div>
-    <div class="pill">Призовой фонд: <?= number_format($prizePool, 0, ',', ' ') ?> ₽</div>
+    <div class="leaderboard-prize-pills">
+        <div class="pill accent-pill"><?= h(config('app.prize_main_title', 'Apple iPhone 17e 256 GB')) ?></div>
+        <div class="pill"><?= number_format($prizePool, 0, ',', ' ') ?> ₽ местам 2–<?= (int) prize_places_count() ?></div>
+    </div>
 </section>
 
 <section class="card">
     <div class="participant-summary-head">
-        <h2>Призы топ-10</h2>
+        <h2>Призы топ-<?= (int) prize_places_count() ?></h2>
         <a class="button small secondary" href="/prizes">Подробнее</a>
     </div>
     <div class="prize-preview">
         <?php foreach (array_slice($distribution, 0, 3) as $row): ?>
             <div>
                 <span><?= (int) $row['place'] ?> место</span>
-                <strong><?= (int) $row['percent'] ?>%</strong>
-                <p><?= number_format((int) $row['amount'], 0, ',', ' ') ?> ₽ сейчас</p>
+                <?php if (!empty($row['is_main_prize'])): ?>
+                    <strong class="prize-preview-main"><?= h($row['label']) ?></strong>
+                    <p>главный приз</p>
+                <?php else: ?>
+                    <strong><?= number_format((int) $row['amount_rub'], 0, ',', ' ') ?> ₽</strong>
+                    <p>денежный приз</p>
+                <?php endif; ?>
             </div>
         <?php endforeach; ?>
     </div>

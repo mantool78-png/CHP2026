@@ -1,0 +1,313 @@
+{
+    "name": "CHP2026 → Telegram @chpwc2026",
+    "flow": [
+        {
+            "id": 1,
+            "module": "telegram-bot:WatchUpdates",
+            "version": 1,
+            "parameters": {},
+            "mapper": {},
+            "metadata": {
+                "designer": {
+                    "x": 0,
+                    "y": 0
+                },
+                "restore": {
+                    "parameters": {
+                        "__IMTCONN__": {
+                            "data": {
+                                "connection": "telegram-bot"
+                            },
+                            "label": "Telegram Bot (@openclawpasha_bot)"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:telegram-bot",
+                        "label": "Connection",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": 2,
+            "module": "builtin:BasicRouter",
+            "version": 1,
+            "mapper": null,
+            "metadata": {
+                "designer": {
+                    "x": 300,
+                    "y": 0
+                }
+            },
+            "routes": [
+                {
+                    "flow": [
+                        {
+                            "id": 3,
+                            "module": "telegram-bot:SendReplyMessage",
+                            "version": 1,
+                            "parameters": {},
+                            "filter": {
+                                "name": "NEWS",
+                                "conditions": [
+                                    [
+                                        {
+                                            "a": "{{lower(1.message.text)}}",
+                                            "b": "news",
+                                            "o": "text:startwith"
+                                        }
+                                    ],
+                                    [
+                                        {
+                                            "a": "{{1.message.text}}",
+                                            "b": "НОВОСТЬ",
+                                            "o": "text:startwith"
+                                        }
+                                    ]
+                                ]
+                            },
+                            "mapper": {
+                                "chatId": "@chpwc2026",
+                                "text": "{{1.message.text}}",
+                                "parseMode": "HTML",
+                                "disableNotification": false,
+                                "disableWebPagePreview": true
+                            },
+                            "metadata": {
+                                "designer": {
+                                    "x": 600,
+                                    "y": -300
+                                },
+                                "restore": {
+                                    "parameters": {
+                                        "__IMTCONN__": {
+                                            "data": {
+                                                "connection": "telegram-bot"
+                                            },
+                                            "label": "Telegram Bot (@openclawpasha_bot)"
+                                        }
+                                    },
+                                    "expect": {
+                                        "parseMode": {
+                                            "mode": "chose",
+                                            "label": "HTML"
+                                        }
+                                    }
+                                },
+                                "parameters": [
+                                    {
+                                        "name": "__IMTCONN__",
+                                        "type": "account:telegram-bot",
+                                        "label": "Connection",
+                                        "required": true
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "flow": [
+                        {
+                            "id": 4,
+                            "module": "telegram-bot:SendReplyMessage",
+                            "version": 1,
+                            "parameters": {},
+                            "filter": {
+                                "name": "RESULT",
+                                "conditions": [
+                                    [
+                                        {
+                                            "a": "{{lower(1.message.text)}}",
+                                            "b": "result",
+                                            "o": "text:startwith"
+                                        }
+                                    ],
+                                    [
+                                        {
+                                            "a": "{{1.message.text}}",
+                                            "b": "РЕЗУЛЬТАТ",
+                                            "o": "text:startwith"
+                                        }
+                                    ]
+                                ]
+                            },
+                            "mapper": {
+                                "chatId": "@chpwc2026",
+                                "text": "{{1.message.text}}",
+                                "parseMode": "HTML",
+                                "disableNotification": false,
+                                "disableWebPagePreview": true
+                            },
+                            "metadata": {
+                                "designer": {
+                                    "x": 600,
+                                    "y": -100
+                                },
+                                "restore": {
+                                    "parameters": {
+                                        "__IMTCONN__": {
+                                            "data": {
+                                                "connection": "telegram-bot"
+                                            },
+                                            "label": "Telegram Bot (@openclawpasha_bot)"
+                                        }
+                                    },
+                                    "expect": {
+                                        "parseMode": {
+                                            "mode": "chose",
+                                            "label": "HTML"
+                                        }
+                                    }
+                                },
+                                "parameters": [
+                                    {
+                                        "name": "__IMTCONN__",
+                                        "type": "account:telegram-bot",
+                                        "label": "Connection",
+                                        "required": true
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "flow": [
+                        {
+                            "id": 5,
+                            "module": "telegram-bot:SendReplyMessage",
+                            "version": 1,
+                            "parameters": {},
+                            "filter": {
+                                "name": "REMINDER",
+                                "conditions": [
+                                    [
+                                        {
+                                            "a": "{{lower(1.message.text)}}",
+                                            "b": "reminder",
+                                            "o": "text:startwith"
+                                        }
+                                    ],
+                                    [
+                                        {
+                                            "a": "{{1.message.text}}",
+                                            "b": "НАПОМИНАНИЕ",
+                                            "o": "text:startwith"
+                                        }
+                                    ]
+                                ]
+                            },
+                            "mapper": {
+                                "chatId": "@chpwc2026",
+                                "text": "{{1.message.text}}",
+                                "parseMode": "HTML",
+                                "disableNotification": false,
+                                "disableWebPagePreview": true
+                            },
+                            "metadata": {
+                                "designer": {
+                                    "x": 600,
+                                    "y": 100
+                                },
+                                "restore": {
+                                    "parameters": {
+                                        "__IMTCONN__": {
+                                            "data": {
+                                                "connection": "telegram-bot"
+                                            },
+                                            "label": "Telegram Bot (@openclawpasha_bot)"
+                                        }
+                                    },
+                                    "expect": {
+                                        "parseMode": {
+                                            "mode": "chose",
+                                            "label": "HTML"
+                                        }
+                                    }
+                                },
+                                "parameters": [
+                                    {
+                                        "name": "__IMTCONN__",
+                                        "type": "account:telegram-bot",
+                                        "label": "Connection",
+                                        "required": true
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "flow": [
+                        {
+                            "id": 6,
+                            "module": "telegram-bot:SendReplyMessage",
+                            "version": 1,
+                            "parameters": {},
+                            "mapper": {
+                                "chatId": "@chpwc2026",
+                                "text": "{{1.message.text}}",
+                                "parseMode": "HTML",
+                                "disableNotification": false,
+                                "disableWebPagePreview": true
+                            },
+                            "metadata": {
+                                "designer": {
+                                    "x": 600,
+                                    "y": 300
+                                },
+                                "restore": {
+                                    "parameters": {
+                                        "__IMTCONN__": {
+                                            "data": {
+                                                "connection": "telegram-bot"
+                                            },
+                                            "label": "Telegram Bot (@openclawpasha_bot)"
+                                        }
+                                    },
+                                    "expect": {
+                                        "parseMode": {
+                                            "mode": "chose",
+                                            "label": "HTML"
+                                        }
+                                    }
+                                },
+                                "parameters": [
+                                    {
+                                        "name": "__IMTCONN__",
+                                        "type": "account:telegram-bot",
+                                        "label": "Connection",
+                                        "required": true
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "metadata": {
+        "version": 1,
+        "scenario": {
+            "roundtrips": 1,
+            "maxErrors": 3,
+            "autoCommit": true,
+            "autoCommitTriggerLast": true,
+            "sequential": false,
+            "confidential": false,
+            "dataloss": false,
+            "dlq": false,
+            "freshVariables": false
+        },
+        "designer": {
+            "orphans": []
+        },
+        "instant": true
+    }
+}

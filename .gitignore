@@ -1,5 +1,22 @@
 config/config.php
+.beget-ftp.env
 .env
 *.log
 .DS_Store
 Thumbs.db
+
+# Загруженные чеки (вне репозитория)
+storage/payment_receipts/*
+!storage/payment_receipts/.gitkeep
+
+# Локальные бэкапы и временные деплой-архивы
+backups/
+deploy-*/
+deploy-*.zip
+
+# Черновики CSS после восстановления
+public/assets/styles.css.broken-match
+public/assets/styles.css.match-only
+public/assets/styles.css.restored
+
+scripts/__pycache__/

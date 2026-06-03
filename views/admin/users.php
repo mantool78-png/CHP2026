@@ -7,6 +7,10 @@
 </section>
 
 <section class="card">
+    <p class="muted">
+        Быстрое «Подтвердить» в таблице — по полному взносу (<?= number_format(entry_fee_rub(), 0, ',', ' ') ?> ₽).
+        Если участник из пары по акции «Приведи друга», откройте карточку и укажите сумму доли (<?= number_format(referral_discounted_entry_fee_rub(), 0, ',', ' ') ?> ₽).
+    </p>
     <div class="filter-tabs">
         <?php foreach ($statusFilters as $filterKey => $filterLabel): ?>
             <a
@@ -25,9 +29,10 @@
         <table>
             <thead>
                 <tr>
-                    <th>Имя</th>
+                    <th>Участник</th>
                     <th>Email</th>
                     <th>Статус</th>
+                    <th>Оплата</th>
                     <th>Прогнозы</th>
                     <th>Бесплатно</th>
                     <th>Точные</th>
@@ -51,6 +56,9 @@
                             <span class="status <?= h($participant['payment_status']) ?>">
                                 <?= h($participant['payment_status']) ?>
                             </span>
+                        </td>
+                        <td>
+                            <?= $participant['payment_amount_rub'] !== null ? number_format((int) $participant['payment_amount_rub'], 0, ',', ' ') . ' ₽' : '—' ?>
                         </td>
                         <td><?= (int) $participant['predictions_count'] ?></td>
                         <td>
@@ -76,12 +84,25 @@
                             <form method="post" action="/admin/users/activate">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="user_id" value="<?= (int) $participant['id'] ?>">
+                                <input type="hidden" name="amount_rub" value="<?= (int) entry_fee_rub() ?>">
                                 <button class="button small" type="submit">Подтвердить</button>
                             </form>
                             <form method="post" action="/admin/users/block">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="user_id" value="<?= (int) $participant['id'] ?>">
                                 <button class="button small danger" type="submit">Блок</button>
+                            </form>
+                            <form
+                                method="post"
+                                action="/admin/users/delete"
+                                onsubmit="return confirm(<?= json_encode(
+                                    'Удалить участника «' . $participant['name'] . '» и все связанные данные (прогнозы, чек, мини-лиги)? Действие необратимо.',
+                                    JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE
+                                ) ?>);"
+                            >
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="user_id" value="<?= (int) $participant['id'] ?>">
+                                <button class="button small danger" type="submit">Удалить</button>
                             </form>
                         </td>
                     </tr>

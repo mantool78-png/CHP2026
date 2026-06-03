@@ -108,6 +108,16 @@ function absolute_url(string $path): string
     return $scheme . '://' . $host . $path;
 }
 
+/** Канонический абсолютный URL активного запроса (путь + query, без якоря). */
+function canonical_url_for_request(): string
+{
+    $parts = parse_url($_SERVER['REQUEST_URI'] ?? '/');
+    $p = path();
+    $query = isset($parts['query']) && $parts['query'] !== '' ? '?' . $parts['query'] : '';
+
+    return absolute_url($p . $query);
+}
+
 function view(string $template, array $data = []): void
 {
     extract($data, EXTR_SKIP);
@@ -220,7 +230,7 @@ function payment_instructions(): string
     return site_text_setting(
         'site_payment_instructions',
         'app.payment_instructions',
-        'Реквизиты для оплаты организатор сообщит отдельно.'
+        ''
     );
 }
 
@@ -233,6 +243,40 @@ function payment_comment_hint(): string
     );
 }
 
+/**
+ * Реквизиты перевода по номеру телефона в кабинете. Пустой payment_transfer_phone в конфиге — блок не показывается.
+ *
+ * @return array{phone_display: string, tel_href: string, bank: string, recipient: string}|null
+ */
+function payment_phone_transfer_block(): ?array
+{
+    $phone = trim((string) config('app.payment_transfer_phone', ''));
+    if ($phone === '') {
+        return null;
+    }
+
+    $digits = preg_replace('/\D/', '', $phone);
+    if (strlen($digits) === 11 && $digits[0] === '7') {
+        $compactTel = '+' . $digits;
+    } elseif (strlen($digits) === 10) {
+        $compactTel = '+7' . $digits;
+    } else {
+        $compactTel = preg_replace('/[^\d+]/u', '', $phone);
+        if ($compactTel !== '' && !str_starts_with($compactTel, '+')) {
+            $compactTel = '+' . $compactTel;
+        }
+    }
+
+    $telHref = ($compactTel !== '' && $compactTel !== '+') ? ('tel:' . $compactTel) : '#';
+
+    return [
+        'phone_display' => $phone,
+        'tel_href' => $telHref,
+        'bank' => trim((string) config('app.payment_transfer_bank', '')),
+        'recipient' => trim((string) config('app.payment_transfer_recipient', '')),
+    ];
+}
+
 /** Связь с организаторами (Telegram, email и т.д.). Пусто — блок на сайте не показывается. */
 function organizer_contact(): string
 {
@@ -241,6 +285,46 @@ function organizer_contact(): string
         'app.organizer_contact',
         ''
     );
+}
+
+/** Официальный Telegram-канал (обсуждения). */
+function contest_telegram_channel_url(): string
+{
+    return 'https://t.me/chpwc2026';
+}
+
+/** Канал конкурса в MAX (дубликаты анонсов вручную). */
+function contest_max_channel_url(): string
+{
+    return 'https://max.ru/join/1CU_THLuqEAdJimS_ixvM7Z6pQVeACDeDwaMgMaPhyM';
+}
+
+function contest_max_channel_name(): string
+{
+    return 'Чемпионат прогнозов 2026';
+}
+
+/** ФИО организатора конкурса (физическое лицо). */
+function contest_organizer_person_name(): string
+{
+    $name = trim((string) config('app.organizer_person_name', ''));
+
+    return $name !== '' ? $name : 'Федоров Павел Олегович';
+}
+
+/** Личный Telegram организатора для вопросов по оплате и призам. */
+function contest_organizer_telegram_url(): string
+{
+    $url = trim((string) config('app.organizer_telegram_url', ''));
+
+    return $url !== '' ? $url : 'https://t.me/Mantoo1978';
+}
+
+function contest_organizer_telegram_handle(): string
+{
+    $handle = trim((string) config('app.organizer_telegram_handle', ''));
+
+    return $handle !== '' ? $handle : '@Mantoo1978';
 }
 
 function render_text_with_links(string $value): string
@@ -318,3 +402,5 @@ function clear_failed_logins(string $email): void
 }
 
 require __DIR__ . '/domain.php';
+require __DIR__ . '/mail.php';
+require __DIR__ . '/match_reminders.php';

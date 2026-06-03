@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 48" role="img" aria-hidden="true">
+  <defs>
+    <clipPath id="wave-MAR">
+      <path d="M1,6 C12,2 24,7 36,4 C48,1 60,6 71,4 L71,44 C60,47 48,42 36,45 C24,48 12,43 1,44 Z"/>
+    </clipPath>
+    <filter id="sh-MAR" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="1.2" stdDeviation="0.9" flood-color="#000" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <g clip-path="url(#wave-MAR)" filter="url(#sh-MAR)" transform="rotate(-1.5 36 24)">
+    <image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAADVBAMAAADUYjTdAAAAFVBMVEXBJy0BYjMnVTGvLC1vPy9NSjCTNC3RzZMkAAADRklEQVR42u2avZKiQBSFG/mJ5yAaQ1llrGyZS7C5XbMPMPj+D7FB09AgumWw9gnOl0xN5C0u5/6cizFCCCGEEEIIIYQQQgghhBBCCCGEEOK/k57IA8yu5AHmNXmA5y15gF1FHqDdkYsYIBcx8MMtYuBGHWACfHGLGNhzixjgljHALeMC4JZxDnDLOAG4ZdwD3DK2KBtqGQNVxyzjAtiemWWcA/WGWcYJcM2YZdwDp5RZxhalMcwyBipjOpTMIjaGWMY5UBtDLOMNcDUmA2piERtDLGPr5NGAdXkfIqOVcTHk1mWac2mvJ61wivg2VRtCfIV29ZpyaS9nYiEU8W5WbuIqtsGblB9u0Pm7AX68P/fvxff57pe+leQyQunOqRPsk1ytiHgh4y6e2dAAOIwpD8IIu3EbKcFD853G+3DdTKZuXAARW/Mdk6EaTvpBN7bhU44xoo4/H+5KUzduEdcTDhI4M428erLojmsLYHdaiNgY6/5JIyfYF5GjWa5Kw+O8zwtRvKnhOhexl3EWYUZ45OLq3PwGlgM31wy/GeZUYB+WPl8Ue4IEj1PDbeH8Avs8Ygt5nBqW3rlF2fCcTNxoWC3zzmOBuNFwu9jwWBI8Nox6sSNTre/3tRQfiTbOtJn3tBYgc5DsbCooALbDNmYhWbAdtgu3Gh2mBJMdtnPgOOo2A4A7l5WeAFc/GrohkOwi1gMnX1pcySGz0i1KPxr6IZDrIubK9DA1uLePykr3W1wfGEVUFzG/B7upwc0IVBex0dcPvpuhuoiNXkw3DYYFk4y9m3Vx7+C3eViUIzPY+t64dqsmkYx9NjsAh3E0JLqIDXoYjCJvdxBdxFxF8Z/m+b9EF7Ee+AmsuOFJEl3EOpQurGpaSA6TB8cg4t3MKBoMJcsi4xTYpzY0ii4AdicaGWfA12Lv7AAcExYZb4A/Cx8hbQD8ZpHxeeWYNJyhtiQiXjGKVgyliCJeMYqG0ZBExGtGUQaAQ8YZ1o2iO4vBtXniw6QWHDI+P3tQGclX6d3TY1LLIeMXo71lmPrTF/tvwSDj7NW1sCWQcf7yNeviL+/tS4OjiF9n/vGS/TJCCCGEEEIIIYQQQgghhBBCCCGEEEIIIYRg4y+TzHv6JNf7zQAAAABJRU5ErkJggg==" x="0" y="0" width="72" height="48" preserveAspectRatio="xMidYMid slice"/>
+  </g>
+  <path d="M1,6 C12,2 24,7 36,4 C48,1 60,6 71,4" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="0.6"/>
+  <path d="M1,44 C12,47 24,42 36,45 C48,48 60,43 71,44" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="0.6"/>
+</svg>

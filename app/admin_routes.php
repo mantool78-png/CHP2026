@@ -12,9 +12,33 @@ if ($method === 'GET' && $path === '/admin') {
 
     $championTeamId = db()->query("SELECT setting_value FROM settings WHERE setting_key = 'champion_team_id'")->fetchColumn() ?: null;
 
+    $collectedFeesRub = (int) db()->query(
+        "SELECT COALESCE(SUM(amount_rub), 0) FROM payments WHERE status = 'confirmed'"
+    )->fetchColumn();
+
+    $activeParticipantsTable = db()->query(
+        "SELECT u.id, u.name, u.email,
+                pay.amount_rub AS payment_amount_rub,
+                pay.confirmed_at
+         FROM users u
+         LEFT JOIN payments pay ON pay.user_id = u.id AND pay.status = 'confirmed'
+         WHERE u.role = 'participant' AND u.payment_status = 'active'
+         ORDER BY pay.confirmed_at IS NULL ASC, pay.confirmed_at DESC, u.name ASC"
+    )->fetchAll();
+
+    $pendingParticipantsTable = db()->query(
+        "SELECT u.id, u.name, u.email, u.created_at
+         FROM users u
+         WHERE u.role = 'participant' AND u.payment_status = 'pending_payment'
+         ORDER BY u.created_at DESC"
+    )->fetchAll();
+
     view('admin/index', [
         'stats' => $stats,
         'prizePool' => prize_pool(),
+        'collectedFeesRub' => $collectedFeesRub,
+        'activeParticipantsTable' => $activeParticipantsTable,
+        'pendingParticipantsTable' => $pendingParticipantsTable,
         'teams' => teams_for_champion_select_with_current(
             $championTeamId ? ['team_id' => (int) $championTeamId] : null
         ),
@@ -161,6 +185,7 @@ if ($method === 'POST' && $path === '/admin/settings/reset') {
 
 if ($method === 'GET' && $path === '/admin/teams') {
     require_admin();
+    ensure_worldcup2026_teams_in_db();
 
     $teams = db()->query(
         "SELECT t.*,
@@ -178,6 +203,14 @@ if ($method === 'GET' && $path === '/admin/teams') {
          ORDER BY t.name"
     )->fetchAll();
 
+    $teams = array_values(array_filter($teams, static function (array $team): bool {
+        return worldcup2026_is_participant_team(
+            $team['code'] !== null && (string) $team['code'] !== '' ? (string) $team['code'] : null,
+            (string) $team['name']
+        );
+    }));
+    worldcup2026_sort_teams_for_admin($teams);
+
     view('admin/teams', ['teams' => $teams]);
     return;
 }
@@ -186,26 +219,7 @@ if ($method === 'POST' && $path === '/admin/teams/create') {
     verify_csrf();
     require_admin();
 
-    $name = trim((string) ($_POST['name'] ?? ''));
-    $code = strtoupper(trim((string) ($_POST['code'] ?? '')));
-    $code = $code === '' ? null : $code;
-
-    if ($name === '') {
-        flash('error', 'Укажите название команды.');
-        redirect('/admin/teams');
-    }
-
-    $stmt = db()->prepare('SELECT COUNT(*) FROM teams WHERE name = ? OR (code IS NOT NULL AND code = ?)');
-    $stmt->execute([$name, $code]);
-    if ((int) $stmt->fetchColumn() > 0) {
-        flash('error', 'Команда с таким названием или кодом уже есть.');
-        redirect('/admin/teams');
-    }
-
-    $stmt = db()->prepare('INSERT INTO teams (name, code, created_at, updated_at) VALUES (?, ?, NOW(), NOW())');
-    $stmt->execute([$name, $code]);
-
-    flash('success', 'Команда добавлена.');
+    flash('error', 'Состав сборных ЧМ-2026 фиксирован — добавление команд отключено.');
     redirect('/admin/teams');
 }
 
@@ -214,27 +228,51 @@ if ($method === 'POST' && $path === '/admin/teams/update') {
     require_admin();
 
     $teamId = (int) ($_POST['team_id'] ?? 0);
-    $name = trim((string) ($_POST['name'] ?? ''));
-    $code = strtoupper(trim((string) ($_POST['code'] ?? '')));
-    $code = $code === '' ? null : $code;
+    $teamsUrl = static function (?int $anchorTeamId = null): string {
+        $url = '/admin/teams';
+        if ($anchorTeamId !== null && $anchorTeamId > 0) {
+            $url .= '#team-' . $anchorTeamId;
+        }
 
-    if ($teamId <= 0 || $name === '') {
-        flash('error', 'Проверьте название команды.');
-        redirect('/admin/teams');
+        return $url;
+    };
+
+    if ($teamId <= 0) {
+        flash('error', 'Команда не найдена.');
+        redirect($teamsUrl());
     }
 
-    $stmt = db()->prepare('SELECT COUNT(*) FROM teams WHERE id <> ? AND (name = ? OR (code IS NOT NULL AND code = ?))');
-    $stmt->execute([$teamId, $name, $code]);
-    if ((int) $stmt->fetchColumn() > 0) {
-        flash('error', 'Команда с таким названием или кодом уже есть.');
-        redirect('/admin/teams');
+    $stmt = db()->prepare('SELECT * FROM teams WHERE id = ? LIMIT 1');
+    $stmt->execute([$teamId]);
+    $team = $stmt->fetch();
+    if (!$team || !worldcup2026_is_participant_team(
+        $team['code'] !== null && (string) $team['code'] !== '' ? (string) $team['code'] : null,
+        (string) $team['name']
+    )) {
+        flash('error', 'Редактировать можно только сборные участников ЧМ-2026.');
+        redirect($teamsUrl($teamId));
     }
 
-    $stmt = db()->prepare('UPDATE teams SET name = ?, code = ?, updated_at = NOW() WHERE id = ?');
-    $stmt->execute([$name, $code, $teamId]);
+    $fifaRankRaw = trim((string) ($_POST['fifa_rank'] ?? ''));
+    $fifaRank = $fifaRankRaw !== '' ? max(1, (int) $fifaRankRaw) : null;
+    $briefNote = trim((string) ($_POST['brief_note'] ?? ''));
+    $formLast5 = trim((string) ($_POST['form_last5'] ?? ''));
+    if (mb_strlen($briefNote) > 600) {
+        flash('error', 'Справка о команде слишком длинная (максимум 600 символов).');
+        redirect($teamsUrl($teamId));
+    }
+    if (mb_strlen($formLast5) > 40) {
+        flash('error', 'Поле «форма» не длиннее 40 символов.');
+        redirect($teamsUrl($teamId));
+    }
 
-    flash('success', 'Команда обновлена.');
-    redirect('/admin/teams');
+    $stmt = db()->prepare(
+        'UPDATE teams SET fifa_rank = ?, brief_note = ?, form_last5 = ?, updated_at = NOW() WHERE id = ?'
+    );
+    $stmt->execute([$fifaRank, $briefNote === '' ? null : $briefNote, $formLast5 === '' ? null : $formLast5, $teamId]);
+
+    flash('success', 'Данные сборной сохранены.');
+    redirect($teamsUrl($teamId));
 }
 
 if ($method === 'POST' && $path === '/admin/teams/delete') {
@@ -242,24 +280,10 @@ if ($method === 'POST' && $path === '/admin/teams/delete') {
     require_admin();
 
     $teamId = (int) ($_POST['team_id'] ?? 0);
+    $teamsUrl = $teamId > 0 ? '/admin/teams#team-' . $teamId : '/admin/teams';
 
-    $stmt = db()->prepare(
-        "SELECT
-            (SELECT COUNT(*) FROM matches WHERE home_team_id = ? OR away_team_id = ?) +
-            (SELECT COUNT(*) FROM champion_predictions WHERE team_id = ?) AS usage_count"
-    );
-    $stmt->execute([$teamId, $teamId, $teamId]);
-
-    if ((int) $stmt->fetchColumn() > 0) {
-        flash('error', 'Команду нельзя удалить: она уже используется в матчах или прогнозах.');
-        redirect('/admin/teams');
-    }
-
-    $stmt = db()->prepare('DELETE FROM teams WHERE id = ?');
-    $stmt->execute([$teamId]);
-
-    flash('success', 'Команда удалена.');
-    redirect('/admin/teams');
+    flash('error', 'Удаление сборных отключено — состав турнира фиксирован.');
+    redirect($teamsUrl);
 }
 
 if ($method === 'GET' && $path === '/admin/matches/import') {
@@ -330,8 +354,8 @@ if ($method === 'POST' && $path === '/admin/matches/import') {
             }
 
             $stmt = db()->prepare(
-                "INSERT INTO matches (stage, home_team_id, away_team_id, starts_at, status, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, 'scheduled', NOW(), NOW())"
+                "INSERT INTO matches (stage, bracket_code, home_team_id, away_team_id, placeholder_home, placeholder_away, starts_at, status, created_at, updated_at)
+                 VALUES (?, NULL, ?, ?, NULL, NULL, ?, 'scheduled', NOW(), NOW())"
             );
             $stmt->execute([$stage, (int) $homeTeam['id'], (int) $awayTeam['id'], $startsAt]);
             $createdMatches++;
@@ -353,6 +377,63 @@ if ($method === 'POST' && $path === '/admin/matches/import') {
         ', строк пропущено: ' . $skippedRows . '.'
     );
     redirect('/admin/matches');
+}
+
+if ($method === 'GET' && $path === '/admin/user/receipt') {
+    require_admin();
+
+    $userId = (int) ($_GET['id'] ?? 0);
+    $check = db()->prepare("SELECT id FROM users WHERE id = ? AND role = 'participant' LIMIT 1");
+    $check->execute([$userId]);
+    if (!$check->fetch()) {
+        http_response_code(404);
+        exit('Участник не найден');
+    }
+
+    $receipt = payment_receipt_for_user($userId);
+    if (!$receipt) {
+        http_response_code(404);
+        exit('Чек не загружен');
+    }
+
+    output_payment_receipt_http($receipt);
+}
+
+if ($method === 'GET' && $path === '/admin/mini-leagues') {
+    require_admin();
+
+    $leagues = admin_all_mini_leagues();
+    $totalMembers = 0;
+    foreach ($leagues as $league) {
+        $totalMembers += (int) ($league['members_count'] ?? 0);
+    }
+
+    view('admin/mini_leagues', [
+        'leagues' => $leagues,
+        'totalLeagues' => count($leagues),
+        'totalMembers' => $totalMembers,
+    ]);
+    return;
+}
+
+if ($method === 'GET' && $path === '/admin/mini-league') {
+    require_admin();
+
+    $leagueId = (int) ($_GET['id'] ?? 0);
+    $league = find_mini_league($leagueId);
+    if (!$league) {
+        http_response_code(404);
+        view('errors/404');
+        return;
+    }
+
+    view('admin/mini_league', [
+        'league' => $league,
+        'members' => admin_mini_league_members($leagueId),
+        'leaders' => mini_league_leaderboard($leagueId),
+        'inviteLink' => absolute_url('/mini-leagues/join?code=' . rawurlencode((string) $league['invite_code'])),
+    ]);
+    return;
 }
 
 if ($method === 'GET' && $path === '/admin/users') {
@@ -378,6 +459,7 @@ if ($method === 'GET' && $path === '/admin/users') {
 
     $stmt = db()->prepare(
         "SELECT u.id, u.name, u.email, u.payment_status, u.created_at,
+                pay.amount_rub AS payment_amount_rub,
                 COALESCE(ps.predictions_count, 0) AS predictions_count,
                 COALESCE(ms.match_points, 0) AS match_points,
                 COALESCE(ms.exact_scores_count, 0) AS exact_scores_count,
@@ -401,6 +483,7 @@ if ($method === 'GET' && $path === '/admin/users') {
          ) ms ON ms.user_id = u.id
          LEFT JOIN champion_predictions cp ON cp.user_id = u.id
          LEFT JOIN teams champion ON champion.id = cp.team_id
+         LEFT JOIN payments pay ON pay.user_id = u.id AND pay.status = 'confirmed'
          $where
          ORDER BY u.created_at DESC"
     );
@@ -421,6 +504,11 @@ if ($method === 'GET' && $path === '/admin/user') {
     $userId = (int) ($_GET['id'] ?? 0);
     $stmt = db()->prepare(
         "SELECT u.id, u.name, u.email, u.payment_status, u.created_at,
+                pay.amount_rub AS payment_amount_rub,
+                pr.original_name AS receipt_original_name,
+                pr.mime_type AS receipt_mime_type,
+                pr.size_bytes AS receipt_size_bytes,
+                pr.updated_at AS receipt_uploaded_at,
                 COALESCE(ps.predictions_count, 0) AS predictions_count,
                 COALESCE(ms.match_points, 0) AS match_points,
                 COALESCE(ms.exact_scores_count, 0) AS exact_scores_count,
@@ -444,6 +532,8 @@ if ($method === 'GET' && $path === '/admin/user') {
          ) ms ON ms.user_id = u.id
          LEFT JOIN champion_predictions cp ON cp.user_id = u.id
          LEFT JOIN teams champion ON champion.id = cp.team_id
+         LEFT JOIN payments pay ON pay.user_id = u.id AND pay.status = 'confirmed'
+         LEFT JOIN payment_receipts pr ON pr.user_id = u.id
          WHERE u.id = ? AND u.role = 'participant'
          LIMIT 1"
     );
@@ -515,15 +605,21 @@ if ($method === 'POST' && $path === '/admin/users/activate') {
     require_admin();
 
     $userId = (int) ($_POST['user_id'] ?? 0);
+    $amountRub = (int) ($_POST['amount_rub'] ?? entry_fee_rub());
+    $allowedAmounts = array_keys(payment_amount_options());
+    if (!in_array($amountRub, $allowedAmounts, true)) {
+        $amountRub = entry_fee_rub();
+    }
+
     $stmt = db()->prepare("UPDATE users SET payment_status = 'active', updated_at = NOW() WHERE id = ? AND role = 'participant'");
     $stmt->execute([$userId]);
 
     $payment = db()->prepare(
         "INSERT INTO payments (user_id, amount_rub, status, confirmed_by, confirmed_at, created_at, updated_at)
          VALUES (?, ?, 'confirmed', ?, NOW(), NOW(), NOW())
-         ON DUPLICATE KEY UPDATE status = 'confirmed', confirmed_by = VALUES(confirmed_by), confirmed_at = NOW(), updated_at = NOW()"
+         ON DUPLICATE KEY UPDATE amount_rub = VALUES(amount_rub), status = 'confirmed', confirmed_by = VALUES(confirmed_by), confirmed_at = NOW(), updated_at = NOW()"
     );
-    $payment->execute([$userId, (int) config('app.entry_fee_rub'), (int) current_user()['id']]);
+    $payment->execute([$userId, $amountRub, (int) current_user()['id']]);
 
     flash('success', 'Участник активирован.');
     redirect('/admin/users');
@@ -538,6 +634,37 @@ if ($method === 'POST' && $path === '/admin/users/block') {
     $stmt->execute([$userId]);
 
     flash('success', 'Участник заблокирован.');
+    redirect('/admin/users');
+}
+
+if ($method === 'POST' && $path === '/admin/users/delete') {
+    verify_csrf();
+    require_admin();
+
+    $userId = (int) ($_POST['user_id'] ?? 0);
+    $adminId = (int) (current_user()['id'] ?? 0);
+
+    if ($userId === $adminId) {
+        flash('error', 'Нельзя удалить собственную учётную запись.');
+        redirect('/admin/users');
+    }
+
+    $check = db()->prepare("SELECT id FROM users WHERE id = ? AND role = 'participant' LIMIT 1");
+    $check->execute([$userId]);
+    if (!$check->fetch()) {
+        flash('error', 'Участник не найден.');
+        redirect('/admin/users');
+    }
+
+    $receipt = payment_receipt_for_user($userId);
+    if ($receipt) {
+        delete_payment_receipt_file((string) ($receipt['file_path'] ?? ''));
+    }
+
+    $del = db()->prepare('DELETE FROM users WHERE id = ? AND role = ?');
+    $del->execute([$userId, 'participant']);
+
+    flash('success', 'Участник удалён вместе с прогнозами и связанными данными.');
     redirect('/admin/users');
 }
 
@@ -569,8 +696,8 @@ if ($method === 'GET' && $path === '/admin/matches') {
     $stmt = db()->prepare(
         "SELECT m.*, ht.name AS home_team, at.name AS away_team
          FROM matches m
-         JOIN teams ht ON ht.id = m.home_team_id
-         JOIN teams at ON at.id = m.away_team_id
+         LEFT JOIN teams ht ON ht.id = m.home_team_id
+         LEFT JOIN teams at ON at.id = m.away_team_id
          $where
          ORDER BY m.starts_at ASC"
     );
@@ -589,19 +716,121 @@ if ($method === 'POST' && $path === '/admin/matches/create') {
     verify_csrf();
     require_admin();
 
+    $stage = trim((string) ($_POST['stage'] ?? ''));
+    $startsAtRaw = trim((string) ($_POST['starts_at'] ?? ''));
+    $bracketCode = trim((string) ($_POST['bracket_code'] ?? ''));
+    $bracketCode = $bracketCode === '' ? null : mb_substr($bracketCode, 0, 20);
+    $placeholderHome = trim((string) ($_POST['placeholder_home'] ?? ''));
+    $placeholderAway = trim((string) ($_POST['placeholder_away'] ?? ''));
+    $placeholderHome = $placeholderHome === '' ? null : mb_substr($placeholderHome, 0, 50);
+    $placeholderAway = $placeholderAway === '' ? null : mb_substr($placeholderAway, 0, 50);
+
+    $homeId = (int) ($_POST['home_team_id'] ?? 0);
+    $awayId = (int) ($_POST['away_team_id'] ?? 0);
+    $homeId = $homeId > 0 ? $homeId : null;
+    $awayId = $awayId > 0 ? $awayId : null;
+
+    if ($stage === '' || $startsAtRaw === '') {
+        flash('error', 'Укажите стадию и дату начала матча.');
+        redirect('/admin/matches');
+    }
+
+    if ($homeId !== null) {
+        $chk = db()->prepare('SELECT id FROM teams WHERE id = ? LIMIT 1');
+        $chk->execute([$homeId]);
+        if (!$chk->fetch()) {
+            flash('error', 'Команда хозяев не найдена.');
+            redirect('/admin/matches');
+        }
+    }
+    if ($awayId !== null) {
+        $chk = db()->prepare('SELECT id FROM teams WHERE id = ? LIMIT 1');
+        $chk->execute([$awayId]);
+        if (!$chk->fetch()) {
+            flash('error', 'Команда гостей не найдена.');
+            redirect('/admin/matches');
+        }
+    }
+    if ($homeId !== null && $awayId !== null && $homeId === $awayId) {
+        flash('error', 'Хозяева и гости не могут быть одной командой.');
+        redirect('/admin/matches');
+    }
+
     $stmt = db()->prepare(
-        "INSERT INTO matches (stage, home_team_id, away_team_id, starts_at, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 'scheduled', NOW(), NOW())"
+        "INSERT INTO matches (stage, bracket_code, home_team_id, away_team_id, placeholder_home, placeholder_away, starts_at, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled', NOW(), NOW())"
     );
-    $stmt->execute([
-        trim((string) ($_POST['stage'] ?? 'Групповой этап')),
-        (int) ($_POST['home_team_id'] ?? 0),
-        (int) ($_POST['away_team_id'] ?? 0),
-        trim((string) ($_POST['starts_at'] ?? '')),
-    ]);
+    $stmt->execute([$stage, $bracketCode, $homeId, $awayId, $placeholderHome, $placeholderAway, $startsAtRaw]);
 
     flash('success', 'Матч добавлен.');
     redirect('/admin/matches');
+}
+
+if ($method === 'POST' && $path === '/admin/matches/update') {
+    verify_csrf();
+    require_admin();
+
+    $matchId = (int) ($_POST['match_id'] ?? 0);
+    if ($matchId <= 0) {
+        flash('error', 'Матч не указан.');
+        redirect('/admin/matches');
+    }
+
+    $stage = trim((string) ($_POST['stage'] ?? ''));
+    $startsAtRaw = trim((string) ($_POST['starts_at'] ?? ''));
+    $bracketCode = trim((string) ($_POST['bracket_code'] ?? ''));
+    $bracketCode = $bracketCode === '' ? null : mb_substr($bracketCode, 0, 20);
+    $placeholderHome = trim((string) ($_POST['placeholder_home'] ?? ''));
+    $placeholderAway = trim((string) ($_POST['placeholder_away'] ?? ''));
+    $placeholderHome = $placeholderHome === '' ? null : mb_substr($placeholderHome, 0, 50);
+    $placeholderAway = $placeholderAway === '' ? null : mb_substr($placeholderAway, 0, 50);
+
+    $homeId = (int) ($_POST['home_team_id'] ?? 0);
+    $awayId = (int) ($_POST['away_team_id'] ?? 0);
+    $homeId = $homeId > 0 ? $homeId : null;
+    $awayId = $awayId > 0 ? $awayId : null;
+
+    if ($stage === '' || $startsAtRaw === '') {
+        flash('error', 'Укажите стадию и дату начала матча.');
+        redirect('/admin/matches');
+    }
+
+    if ($homeId !== null) {
+        $chk = db()->prepare('SELECT id FROM teams WHERE id = ? LIMIT 1');
+        $chk->execute([$homeId]);
+        if (!$chk->fetch()) {
+            flash('error', 'Команда хозяев не найдена.');
+            redirect('/admin/matches');
+        }
+    }
+    if ($awayId !== null) {
+        $chk = db()->prepare('SELECT id FROM teams WHERE id = ? LIMIT 1');
+        $chk->execute([$awayId]);
+        if (!$chk->fetch()) {
+            flash('error', 'Команда гостей не найдена.');
+            redirect('/admin/matches');
+        }
+    }
+    if ($homeId !== null && $awayId !== null && $homeId === $awayId) {
+        flash('error', 'Хозяева и гости не могут быть одной командой.');
+        redirect('/admin/matches');
+    }
+
+    $stmt = db()->prepare(
+        "UPDATE matches
+         SET stage = ?, bracket_code = ?, home_team_id = ?, away_team_id = ?, placeholder_home = ?, placeholder_away = ?, starts_at = ?, updated_at = NOW()
+         WHERE id = ?"
+    );
+    $stmt->execute([$stage, $bracketCode, $homeId, $awayId, $placeholderHome, $placeholderAway, $startsAtRaw, $matchId]);
+
+    flash('success', 'Матч обновлён.');
+    $stageKeys = ['all', 'group', 'round32', 'round16', 'quarter', 'semi', 'third', 'final'];
+    $returnStage = (string) ($_POST['return_stage'] ?? 'all');
+    if (!in_array($returnStage, $stageKeys, true)) {
+        $returnStage = 'all';
+    }
+    $query = $returnStage === 'all' ? '' : ('?stage=' . rawurlencode($returnStage));
+    redirect('/admin/matches' . $query . '#match-' . $matchId);
 }
 
 if ($method === 'POST' && $path === '/admin/results') {
@@ -609,18 +838,49 @@ if ($method === 'POST' && $path === '/admin/results') {
     require_admin();
 
     $matchId = (int) ($_POST['match_id'] ?? 0);
-    $homeScore = max(0, (int) ($_POST['home_score'] ?? 0));
-    $awayScore = max(0, (int) ($_POST['away_score'] ?? 0));
+    if ($matchId <= 0) {
+        flash('error', 'Матч не указан.');
+        redirect('/admin/matches');
+    }
 
-    $stmt = db()->prepare(
-        "UPDATE matches
-         SET home_score = ?, away_score = ?, status = 'finished', updated_at = NOW()
-         WHERE id = ?"
-    );
-    $stmt->execute([$homeScore, $awayScore, $matchId]);
-    recalculate_scores($matchId);
+    $chk = db()->prepare('SELECT COUNT(*) FROM matches WHERE id = ?');
+    $chk->execute([$matchId]);
+    if ((int) $chk->fetchColumn() === 0) {
+        flash('error', 'Матч не найден.');
+        redirect('/admin/matches');
+    }
 
-    flash('success', 'Результат сохранен, очки пересчитаны.');
+    if (!empty($_POST['clear_result'])) {
+        db()->prepare('DELETE FROM scores WHERE match_id = ?')->execute([$matchId]);
+        db()->prepare(
+            "UPDATE matches
+             SET home_score = NULL, away_score = NULL, status = 'scheduled', updated_at = NOW()
+             WHERE id = ?"
+        )->execute([$matchId]);
+
+        flash('success', 'Результат сброшен, начисленные за матч очки удалены из зачёта.');
+    } else {
+        $teamsStmt = db()->prepare('SELECT home_team_id, away_team_id FROM matches WHERE id = ?');
+        $teamsStmt->execute([$matchId]);
+        $teamsRow = $teamsStmt->fetch();
+        if (!$teamsRow || $teamsRow['home_team_id'] === null || $teamsRow['away_team_id'] === null) {
+            flash('error', 'Назначьте обе команды в матче, прежде чем вводить счёт.');
+            redirect('/admin/matches');
+        }
+
+        $homeScore = max(0, (int) ($_POST['home_score'] ?? 0));
+        $awayScore = max(0, (int) ($_POST['away_score'] ?? 0));
+
+        $stmt = db()->prepare(
+            "UPDATE matches
+             SET home_score = ?, away_score = ?, status = 'finished', updated_at = NOW()
+             WHERE id = ?"
+        );
+        $stmt->execute([$homeScore, $awayScore, $matchId]);
+        recalculate_scores($matchId);
+
+        flash('success', 'Результат сохранён, очки пересчитаны.');
+    }
     $stageKeys = ['all', 'group', 'round32', 'round16', 'quarter', 'semi', 'third', 'final'];
     $returnStage = (string) ($_POST['return_stage'] ?? 'all');
     if (!in_array($returnStage, $stageKeys, true)) {

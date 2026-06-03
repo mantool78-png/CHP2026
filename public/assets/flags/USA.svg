@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 48" role="img" aria-hidden="true">
+  <defs>
+    <clipPath id="wave-USA">
+      <path d="M1,6 C12,2 24,7 36,4 C48,1 60,6 71,4 L71,44 C60,47 48,42 36,45 C24,48 12,43 1,44 Z"/>
+    </clipPath>
+    <filter id="sh-USA" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="1.2" stdDeviation="0.9" flood-color="#000" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <g clip-path="url(#wave-USA)" filter="url(#sh-USA)" transform="rotate(-1.5 36 24)">
+    <image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAACoCAMAAACmLsfDAAAAP1BMVEUKMWGzGUL////sxtDZjKHGU3IiRnGFmLBIZYn9/P0RN2ZshKC4w9HN1d9xXYAxUnqaq75VcJHd4unq7vLHVHLv+YXxAAAEGElEQVR42u2dy3KjMBRElZtEbw2Y5P+/dRYzqWC4FjbCULT7LrKg0gtOSfKhQznGHDxvJx9DgARIgCAAL9r9dZ129XL3xcU8EMCi3atzGpVBo7IujwPQinavRWPlRGHV6fmykMcAGJNzWQbnnB1vNOeciHNuvDmtc26Q7FyKvxcb8iAr0BYREfm6PsdcEBGZrCz/JSIiZYyqmg/VPMwWdjMoxhgfRIKfXLRFRPrptuxX5rEATqlYEZmfd2W2Kqt5W83DACzDJc9YuZBScDMq+TKU+afNujwKQNtHY1Ka7svOmG66W1MyJvaTdbU6jwIwjn7+im68efHn6o8or80bOfcE9fFqS1H+nUF9KIEEqIqyXSfKC6KNB3BrUa7kQVfgxqJ8nfevsIV1UX6KaIOegZuKcjUPugI3FeVqHhPgtqJczWMBfIoo1/NYAI9ppHEAHtRIYwA8sJF+P/mwkWYjzUaajTQbaTbS522kIV8u2rORhgS4ZyMNB3DvRhpvBe7cSANu4X0bacQzcNdGGnEF7tpIf557vtlIs5E+YSNtS6NolxdqpHVRto2ibdEaae99L8V7PybTeX8RuXg/XlrWe1+k996PRXl9HmQF/rdfcXFuvxN9c6I49WV1HmUL26w9KLigKJ3/EpE8/ZS9mQ/1PMwZmEQk3yfKWURmQpLuF+2rPAzAHPoh2BmVnGesbBj6MGO9No8CMA6dif30XnMyJk1ZpT6abvpYG8tj+QFtC9tojDF2Irr25sVor0X5X757OI/5iq9tbKRviLZ9oXektxPlhTzKmwnPE+VKHrPOio2i/EAetQ/cVpSredBGelNRroo6aCN9U5Rla9HGBLiNKMd78lgAO010rdVEudNE+Y789FexAGZ74w8k802e1aNzVR4HoA3avWaNVVJFeV0eA2D03jtNlH0Iqii7uSivzIOswOMaaZgXLI9qpGHOQFV0YxAJDaJsl/MfJ59r0Y33iHJsbKQjZiNddm6k0b50QhfdVlFezoM20huK8kIeE+CWojxqbtJLAHxYlP1q0cYEuHcjDbiF922kEc/A+0W5VbQxAW4rylVRxwS4byMNBPAporzYSAMBPKaRhikT2EizkWYjzUaajfT+jTQMwKMaaRSAhzXSMGfglegaTZSN2ii35hFfb9t1CJAACZAAjwT45+A5fZkgnLY6iwwIkAAJkAA5BEiABEiAHAIkwNMB/OC0lQlvnLY6iwgIkAAJkAA5BEiABEiAHAIkwNMBfOe0fQEjGyn2gQRIgATIIUACJEAC5BAgARLgqwH85LT9a0gWUuwDCZAACZBDgARIgATIIUACJEC+mcDhmwnsAwmQADkESIAESIAcAiRAAiRATgUg+xTWWQRIgATIIUACJEAC5BAgARIgAXIemb/Mc2QBMzY8bQAAAABJRU5ErkJggg==" x="0" y="0" width="72" height="48" preserveAspectRatio="xMidYMid slice"/>
+  </g>
+  <path d="M1,6 C12,2 24,7 36,4 C48,1 60,6 71,4" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="0.6"/>
+  <path d="M1,44 C12,47 24,42 36,45 C48,48 60,43 71,44" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="0.6"/>
+</svg>

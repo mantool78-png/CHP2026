@@ -34,6 +34,10 @@
             <dd><?= h($participant['payment_status']) ?></dd>
         </div>
         <div>
+            <dt>Подтверждённая сумма</dt>
+            <dd><?= $participant['payment_amount_rub'] !== null ? number_format((int) $participant['payment_amount_rub'], 0, ',', ' ') . ' ₽' : '—' ?></dd>
+        </div>
+        <div>
             <dt>Прогноз на чемпиона</dt>
             <dd><?= h($participant['champion_team'] ?: '—') ?> · <?= (int) $participant['champion_points'] ?> очков</dd>
         </div>
@@ -48,14 +52,42 @@
     </dl>
 </section>
 
+<section class="card">
+    <h2>Чек об оплате</h2>
+    <?php if (!empty($participant['receipt_uploaded_at'])): ?>
+        <p class="muted">
+            Файл: <strong><?= h((string) ($participant['receipt_original_name'] ?? '')) ?></strong>
+            · <?= h((string) ($participant['receipt_mime_type'] ?? '')) ?>
+            · <?= (int) ($participant['receipt_size_bytes'] ?? 0) > 0 ? number_format((int) ($participant['receipt_size_bytes'] ?? 0), 0, ',', ' ') . ' байт' : '—' ?>
+            · загрузка <?= h(date('d.m.Y H:i', strtotime((string) $participant['receipt_uploaded_at']))) ?>
+        </p>
+        <a class="button small" href="/admin/user/receipt?id=<?= (int) $participant['id'] ?>" target="_blank" rel="noopener">Открыть чек</a>
+    <?php else: ?>
+        <p class="muted">Участник ещё не прикрепил чек.</p>
+    <?php endif; ?>
+</section>
+
 <?php if (($participant['payment_status'] ?? '') === 'pending_payment'): ?>
     <section class="card">
         <h2>Оплата</h2>
-        <p class="muted">Подтвердите, что стартовый взнос получен. После этого снимается лимит пробных прогнозов и открывается выбор чемпиона.</p>
+        <p class="muted">
+            Подтвердите фактически полученную сумму по этому участнику. Для пары «Приведи друга» при одном банковском переводе на <?= number_format(referral_pair_entry_fee_rub(), 0, ',', ' ') ?> ₽
+            укажите долю этого аккаунта — <?= number_format(referral_discounted_entry_fee_rub(), 0, ',', ' ') ?> ₽ (у второго участника такая же доля при отдельном подтверждении).
+        </p>
         <div class="table-actions">
-            <form method="post" action="/admin/users/activate">
+            <form method="post" action="/admin/users/activate" class="activation-form">
                 <?= csrf_field() ?>
                 <input type="hidden" name="user_id" value="<?= (int) $participant['id'] ?>">
+                <label>
+                    Сумма оплаты
+                    <select name="amount_rub">
+                        <?php foreach (payment_amount_options() as $amountRub => $label): ?>
+                            <option value="<?= (int) $amountRub ?>">
+                                <?= number_format((int) $amountRub, 0, ',', ' ') ?> ₽ — <?= h($label) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
                 <button class="button" type="submit">Подтвердить оплату</button>
             </form>
             <form method="post" action="/admin/users/block">
@@ -68,7 +100,12 @@
 <?php elseif (($participant['payment_status'] ?? '') === 'active'): ?>
     <section class="card">
         <h2>Оплата</h2>
-        <p class="muted">Статус оплаты подтверждён, участник активен.</p>
+        <p class="muted">
+            Статус оплаты подтверждён, участник активен.
+            <?php if ($participant['payment_amount_rub'] !== null): ?>
+                Зафиксированная сумма: <?= number_format((int) $participant['payment_amount_rub'], 0, ',', ' ') ?> ₽.
+            <?php endif; ?>
+        </p>
     </section>
 <?php elseif (($participant['payment_status'] ?? '') === 'blocked'): ?>
     <section class="card">
@@ -92,6 +129,27 @@
             <input type="password" name="new_password_confirmation" required minlength="8" autocomplete="new-password">
         </label>
         <button class="button secondary" type="submit">Установить новый пароль</button>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Удалить участника</h2>
+    <p class="muted">
+        Безвозвратно: профиль, все прогнозы, чек в папке хранения, записи в мини-лигах и связанное.
+        Платёжные записи в базе удалятся каскадом вместе с пользователем.
+    </p>
+    <form
+        method="post"
+        action="/admin/users/delete"
+        class="stack"
+        onsubmit="return confirm(<?= json_encode(
+            'Удалить участника «' . $participant['name'] . '» навсегда?',
+            JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE
+        ) ?>);"
+    >
+        <?= csrf_field() ?>
+        <input type="hidden" name="user_id" value="<?= (int) $participant['id'] ?>">
+        <button class="button danger" type="submit">Удалить участника</button>
     </form>
 </section>
 

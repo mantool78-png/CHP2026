@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 48" role="img" aria-hidden="true">
+  <defs>
+    <clipPath id="wave-CZE">
+      <path d="M1,6 C12,2 24,7 36,4 C48,1 60,6 71,4 L71,44 C60,47 48,42 36,45 C24,48 12,43 1,44 Z"/>
+    </clipPath>
+    <filter id="sh-CZE" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="1.2" stdDeviation="0.9" flood-color="#000" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <g clip-path="url(#wave-CZE)" filter="url(#sh-CZE)" transform="rotate(-1.5 36 24)">
+    <image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAADVBAMAAADUYjTdAAAALVBMVEURRX7XFBr////rio3i6e9COGSEKEO9GSZGbZoeT4WWrcepvNBYfaSHob7T3OcPf6OhAAADOklEQVR42s3WwW1UQRBF0d5QsiVYvBRIgQycRK0rBHJgzR68IwTHMBEQApEgWTZ4xv/PdP/urr4vgrO4UlU5fWav3D/BgeXjAxxYHunAcqIDfzzBgegMn4H3j3AgOcMXIDfDFyA3w1cgNsPybyc6EJrhfyA0wzdA5lF+C0RmeAYk/oZnQGKG50BghhdAXoaXQFyGl0Bchu+AtAzfA2EZbgBZGW4AWRluAVEZbgJJGW4DQRluA0EZ7gA5Ge4BMRnuAikZ7gIpGe4DIRleATIyvAZEZHgNiMjwKpCQ4XUgIMMbwPtfcGC5e4ADy086sHyjAxdneBu4OMMK4NoMa4BLM6wCrsywCrgywzrgwgwrgesyrAUuy7AWuCzDauCqDOuBizJsAK7JsAG4JsMW4JIMm4ArMmwDLsiwDbggw0ZgfoatwPQMm4HZGTYDy90fODA5wwPA8p0OTM3wCDA1w0PAzAyPARMzPAjMy/AgMC/Do8C0DA8DszI8DkzK8DgwKcMOYE6GPcCUDLuAGRl2ATMy7AMmZNgJnJ9hL3B6hr3A6Rl2A2dn2A+cnOEA4NwMBwDnZjgCODXDIcCZGY4BTsxwDHBihoOA5RMdOC3DYcDymw6clOE44KQMBwLnZDgSOCXDocAZGQ4FzshwLHBChoOB4zMcDbz7MnijgaHBG+xzsYEmNvDDVzgwxAa62EATGzgjwKHAEBvoYgNNbOCkAMcBQ2ygiw00sYHzAhwEDLGBLjbQxAZODXAEMMQGuthAExs4O8BuYIgNdLGBJjYwIcA+YIgNdLGBJjYwJ8AOYIgNdLGBJjYwLcCjwBAb6GIDTWxgZoCHgCE20MUGmtjA5ADbgSE20MUGmtjA/AAbgSE20MUGmtjAJQG2AENsoIsNNLGBqwKsBobYQBcbaGIDFwZYBwyxgS420MQGrg2wAhhiA11soIkNXB7gLWCIDXSxgSY2kBDgVWCIDXSxgSY2EBLgPjDEBrrYQBMbyAlwBxhiA11soIkNRAW4BQyxgS420MQG0gJ8BwyxgS420MQGAgM8B4bYQBcbaGIDmQG+AYbYQBcbaGIDsQG+AkNsoIsNNLGB5ACfgSE20Nk+/QVCJU3z8a60VwAAAABJRU5ErkJggg==" x="0" y="0" width="72" height="48" preserveAspectRatio="xMidYMid slice"/>
+  </g>
+  <path d="M1,6 C12,2 24,7 36,4 C48,1 60,6 71,4" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="0.6"/>
+  <path d="M1,44 C12,47 24,42 36,45 C48,48 60,43 71,44" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="0.6"/>
+</svg>

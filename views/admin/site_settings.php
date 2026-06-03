@@ -8,7 +8,7 @@
 
 <section class="card">
     <p class="muted">
-        Участники видят реквизиты и подсказку в личном кабинете (до подтверждения оплаты). Контакты — в кабинете, в правилах и в подвале сайта (если поле не пустое).
+        Участники видят реквизиты и подсказку в личном кабинете (до подтверждения оплаты). Ссылки на официальные каналы (Telegram и MAX) заданы в коде и показываются в подвале и в кабинете; ниже — дополнительный текст (email, часы ответа и т.д.), если поле не пустое.
         Если поле очистить и сохранить, для него снова подтянется значение из <code>config/config.php</code>, если оно там задано.
         Кнопка сброса удаляет все три значения, сохранённые в базе.
     </p>
@@ -25,7 +25,7 @@
         </label>
         <label>
             Контакты для вопросов (Telegram, email, время ответа)
-            <textarea name="organizer_contact" rows="4" maxlength="1500" placeholder="Например: Telegram @username или почта organizer@example.com"><?= h($organizerContact) ?></textarea>
+            <textarea name="organizer_contact" rows="4" maxlength="1500" placeholder="Дополнительно к ссылкам Telegram и MAX в подвале: email, время ответа и т.д."><?= h($organizerContact) ?></textarea>
         </label>
         <button class="button" type="submit">Сохранить</button>
     </form>

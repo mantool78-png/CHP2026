@@ -7,62 +7,64 @@
 </section>
 
 <section class="card">
-    <h2>Добавить команду</h2>
-    <form method="post" action="/admin/teams/create" class="team-form">
-        <?= csrf_field() ?>
-        <input name="name" placeholder="Название, например Аргентина" required maxlength="120">
-        <input name="code" placeholder="Код, например ARG" maxlength="12">
-        <button class="button" type="submit">Добавить</button>
-    </form>
-    <p class="muted">Код необязателен, но удобен для импорта матчей и будущих флагов.</p>
-</section>
-
-<section class="card">
-    <h2>Список команд</h2>
+    <h2>Сборные ЧМ-2026</h2>
+    <p class="muted">
+        48 участников турнира. Заполните рейтинг FIFA, форму и краткую справку — они показываются на карточке матча.
+        Рейтинг обновляйте по
+        <a class="table-link" href="https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/teams" rel="noopener noreferrer" target="_blank">официальной таблице FIFA</a>.
+        Служебные записи плей-офф (например «1-е место группы A») здесь не отображаются.
+    </p>
     <?php if (!$teams): ?>
-        <p class="muted">Команды пока не добавлены.</p>
+        <p class="muted">Сборные не найдены. Обновите страницу — они подтянутся из справочника турнира.</p>
     <?php else: ?>
-        <table>
-            <thead>
-                <tr>
-                    <th>Название</th>
-                    <th>Код</th>
-                    <th>Используется</th>
-                    <th>Действия</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($teams as $team): ?>
-                    <?php
-                        $usageCount = (int) $team['matches_count'] + (int) $team['champion_predictions_count'];
-                    ?>
-                    <tr>
-                        <td colspan="4">
-                            <form method="post" action="/admin/teams/update" class="team-row">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="team_id" value="<?= (int) $team['id'] ?>">
-                                <input name="name" value="<?= h($team['name']) ?>" required maxlength="120">
-                                <input name="code" value="<?= h($team['code'] ?? '') ?>" maxlength="12">
-                                <span class="muted">
-                                    <?= (int) $team['matches_count'] ?> матчей,
-                                    <?= (int) $team['champion_predictions_count'] ?> прогнозов
-                                </span>
-                                <button class="button small" type="submit">Сохранить</button>
-                            </form>
-                            <form method="post" action="/admin/teams/delete" class="delete-team-form">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="team_id" value="<?= (int) $team['id'] ?>">
-                                <button class="button small danger" type="submit" <?= $usageCount > 0 ? 'disabled' : '' ?>>
-                                    Удалить
-                                </button>
-                                <?php if ($usageCount > 0): ?>
-                                    <span class="muted">Удаление недоступно, команда уже используется.</span>
-                                <?php endif; ?>
-                            </form>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+        <div class="admin-teams-list">
+            <?php foreach ($teams as $team): ?>
+                <?php
+                    $teamId = (int) $team['id'];
+                    $rankVal = $team['fifa_rank'] !== null && $team['fifa_rank'] !== '' ? (int) $team['fifa_rank'] : '';
+                    $wcGroup = worldcup2026_group_for_team(
+                        $team['code'] !== null && (string) $team['code'] !== '' ? (string) $team['code'] : null,
+                        (string) $team['name']
+                    );
+                    $teamCode = $team['code'] !== null && (string) $team['code'] !== '' ? (string) $team['code'] : null;
+                ?>
+                <div class="admin-team-card" id="team-<?= $teamId ?>">
+                    <p class="admin-team-card-title">
+                        <?php render_team_with_flag($teamCode, (string) $team['name'], 'team-with-flag admin-team-card-title__name'); ?>
+                        <?php if ($teamCode !== null): ?>
+                            <span class="muted admin-team-card-code"><?= h($teamCode) ?></span>
+                        <?php endif; ?>
+                    </p>
+                    <?php if ($wcGroup !== null): ?>
+                        <p class="muted admin-team-wc-line">Группа ЧМ-2026: <strong><?= h($wcGroup) ?></strong> · <?= h(WORLD_CUP_2026_GROUP_LABEL_RU[$wcGroup] ?? '') ?></p>
+                    <?php endif; ?>
+                    <form method="post" action="/admin/teams/update" class="stack">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="team_id" value="<?= $teamId ?>">
+                        <div class="team-form-inline">
+                            <label>
+                                Место FIFA
+                                <input name="fifa_rank" type="number" min="1" max="300" value="<?= $rankVal !== '' ? (int) $rankVal : '' ?>" placeholder="рейтинг">
+                            </label>
+                            <label>
+                                Форма (до 40 симв.)
+                                <input name="form_last5" value="<?= h($team['form_last5'] ?? '') ?>" maxlength="40" placeholder="ВНВПВ">
+                            </label>
+                        </div>
+                        <label>
+                            Справка (до 600 симв.)
+                            <textarea name="brief_note" rows="2" maxlength="600" placeholder="Стиль игры, ключевые игроки…"><?= h($team['brief_note'] ?? '') ?></textarea>
+                        </label>
+                        <div class="team-form-actions">
+                            <span class="muted">
+                                <?= (int) $team['matches_count'] ?> матчей,
+                                <?= (int) $team['champion_predictions_count'] ?> прогнозов на чемпиона
+                            </span>
+                            <button class="button small" type="submit">Сохранить</button>
+                        </div>
+                    </form>
+                </div>
+            <?php endforeach; ?>
+        </div>
     <?php endif; ?>
 </section>

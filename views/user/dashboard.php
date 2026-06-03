@@ -16,8 +16,14 @@
             <p class="muted">
                 Осталось бесплатных прогнозов:
                 <strong><?= (int) $freePredictionsRemaining ?></strong>.
-                Если конкурс понравится, оплатите взнос <?= (int) config('app.entry_fee_rub') ?> ₽,
+                Если конкурс понравится, оплатите взнос <?= number_format(entry_fee_rub(), 0, ',', ' ') ?> ₽,
                 чтобы продолжить игру без лимита и выбрать чемпиона мира.
+            </p>
+            <p class="muted">
+                Пара по акции «Приведи друга»: один перевод
+                <strong><?= number_format(referral_pair_entry_fee_rub(), 0, ',', ' ') ?> ₽</strong>
+                на двоих вместо <?= number_format(entry_fee_rub() * 2, 0, ',', ' ') ?> ₽; в комментарии — оба email или оба аккаунта.
+                Парная скидка не распространяется на участника, которого «добавляют» после того, как первый уже оплатил полные <?= number_format(entry_fee_rub(), 0, ',', ' ') ?> ₽ отдельно.
             </p>
         </div>
         <div class="payment-steps">
@@ -29,7 +35,7 @@
             <div>
                 <span>2</span>
                 <strong>Переведите взнос</strong>
-                <p class="payment-instructions-text"><?= nl2br(h(payment_instructions())) ?></p>
+                <?php $showPaymentComment = false; require __DIR__ . '/../partials/payment_details.php'; ?>
             </div>
             <div>
                 <span>3</span>
@@ -41,13 +47,46 @@
                 <strong>Дождитесь активации</strong>
                 <p>Админ проверит оплату вручную, после этого лимит будет снят.</p>
             </div>
+            <?php if (($user['payment_status'] ?? '') === 'pending_payment'): ?>
+                <div>
+                    <span>5</span>
+                    <strong>Приложите чек</strong>
+                    <p>JPG, PNG или PDF, до 10 МБ. Один файл на аккаунт; при ошибке можно заменить новой загрузкой.</p>
+                    <?php if (!empty($paymentReceipt)): ?>
+                        <p class="muted payment-receipt-status">
+                            Загружено:
+                            <strong><?= h((string) ($paymentReceipt['original_name'] ?? '')) ?></strong>
+                            · <?= h(date('d.m.Y H:i', strtotime((string) ($paymentReceipt['updated_at'] ?? '')))) ?>
+                        </p>
+                        <p class="payment-receipt-pending-notice" role="status">
+                            Дождитесь подтверждения оплаты организатором. После проверки снимутся ограничения пробного режима.
+                        </p>
+                    <?php endif; ?>
+                    <form method="post" action="/payment-receipt" enctype="multipart/form-data" class="payment-receipt-form stack">
+                        <?= csrf_field() ?>
+                        <label class="file-upload-label">
+                            <span class="muted">Файл чека</span>
+                            <input
+                                type="file"
+                                name="receipt"
+                                accept="image/jpeg,image/png,application/pdf,.jpg,.jpeg,.png,.pdf"
+                                <?= empty($paymentReceipt) ? 'required' : '' ?>
+                            >
+                        </label>
+                        <button class="button secondary small" type="submit">
+                            <?= empty($paymentReceipt) ? 'Отправить чек' : 'Заменить чек' ?>
+                        </button>
+                    </form>
+                </div>
+            <?php endif; ?>
         </div>
-        <?php if (organizer_contact() !== ''): ?>
-            <div class="organizer-contact-block">
-                <p class="eyebrow">Связь с организаторами</p>
+        <div class="organizer-contact-block">
+            <p class="eyebrow">Связь с организаторами</p>
+            <?php require __DIR__ . '/../partials/official_channels.php'; ?>
+            <?php if (organizer_contact() !== ''): ?>
                 <p class="payment-instructions-text"><?= render_text_with_links(organizer_contact()) ?></p>
-            </div>
-        <?php endif; ?>
+            <?php endif; ?>
+        </div>
     </section>
 <?php endif; ?>
 
@@ -58,7 +97,7 @@
             <div class="actions compact-actions">
                 <a class="button small secondary" href="/my-scores">Мои очки</a>
                 <a class="button small secondary" href="/mini-leagues">Мини-лиги</a>
-                <a class="button small secondary" href="/leaderboard">Общая таблица</a>
+                <a class="button small secondary" href="/rating">Общий рейтинг</a>
             </div>
         </div>
         <div class="participant-summary-grid">
@@ -93,7 +132,7 @@
         </div>
         <p class="muted small-print">
             При равенстве очков выше тот, у кого больше точных счетов, затем угаданных исходов,
-            меньше оставленных прогнозов и ранняя регистрация.
+            затем кто раньше зарегистрировался. Место в таблице определяется однозначно, без жеребьёвки.
         </p>
     </section>
 <?php endif; ?>
@@ -141,7 +180,7 @@
     </form>
 </section>
 
-<section class="card">
+<section class="card" id="dashboard-predictions">
     <div class="participant-summary-head">
         <h2>Прогнозы на матчи</h2>
         <a class="button small secondary" href="/my-scores">История очков</a>
@@ -170,7 +209,7 @@
         <?php endif; ?>
         <label>
             Дата матчей
-            <select name="date" onchange="this.form.submit()">
+            <select name="date">
                 <option value="">Все даты</option>
                 <?php foreach ($availableDates as $dateRow): ?>
                     <option value="<?= h($dateRow['match_date']) ?>" <?= $activeDate === $dateRow['match_date'] ? 'selected' : '' ?>>
@@ -202,8 +241,8 @@
                     <input type="hidden" name="return_stage" value="<?= h($activeStage) ?>">
                     <input type="hidden" name="return_date" value="<?= h($activeDate) ?>">
                     <div>
-                        <a class="match-title" href="/match?id=<?= (int) $match['id'] ?>">
-                            <?= h($match['home_team']) ?> — <?= h($match['away_team']) ?>
+                        <a class="match-title" href="<?= h(match_url((int) $match['id'], 'dashboard')) ?>">
+                            <?php render_match_teams_with_flags($match['home_code'] ?? null, (string) $match['home_team'], $match['away_code'] ?? null, (string) $match['away_team']); ?>
                         </a>
                         <p class="muted">
                             <?= h($match['stage']) ?> · <?= h(date('d.m.Y H:i', strtotime($match['starts_at']))) ?>
@@ -239,3 +278,37 @@
         </div>
     <?php endif; ?>
 </section>
+<script>
+(function () {
+    var key = 'chpDashboardScrollPredictions';
+    var section = document.getElementById('dashboard-predictions');
+    var dateSel = section && section.querySelector('.date-filter select[name="date"]');
+    if (dateSel && dateSel.form) {
+        dateSel.addEventListener('change', function () {
+            try {
+                sessionStorage.setItem(key, '1');
+            } catch (e) {}
+            dateSel.form.submit();
+        });
+    }
+    function scrollToPredictions() {
+        if (!section) {
+            return;
+        }
+        try {
+            if (sessionStorage.getItem(key) !== '1') {
+                return;
+            }
+            sessionStorage.removeItem(key);
+        } catch (e) {
+            return;
+        }
+        section.scrollIntoView({ block: 'start', behavior: 'auto' });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', scrollToPredictions);
+    } else {
+        scrollToPredictions();
+    }
+})();
+</script>

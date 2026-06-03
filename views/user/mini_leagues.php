@@ -30,7 +30,7 @@
             </label>
             <button class="button" type="submit">Вступить</button>
         </form>
-        <p class="muted" style="margin-top: 0.75rem;">Если друг прислал <strong>ссылку</strong> — откройте её: после входа вступление произойдёт само, код вводить не нужно.</p>
+        <p class="muted" style="margin-top: 0.75rem;">Если друг прислал <strong>ссылку</strong>: откройте её, при необходимости войдите — затем на странице подтверждения нажмите «Вступить» (защита от ложных вступлений).</p>
     </div>
 </section>
 

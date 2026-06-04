@@ -100,7 +100,14 @@ tar -czf ~/backup-site-$(date +%Y%m%d).tgz app public views config
 
 ## Работа с матчами
 
-В MVP расписание загружается вручную через админку. Это надежнее, чем парсить страницу FIFA в реальном времени. Когда официальный календарь будет финализирован, матчи можно добавить через админку или расширить проект CSV-импортом.
+Расписание загружается через админку (CSV-импорт). Результаты можно вводить вручную или подключить **API-Football** (счёт основного времени, как в правилах).
+
+### API-Football (опционально)
+
+1. Миграция: `php scripts/apply_migration_009.php` (или `database/migrations/009_api_football.sql` в phpMyAdmin).
+2. В `config/config.php`: секция `api_football` — `enabled`, `api_key`, `cron_token`; для виджетов на `/matches` — `widgets_enabled` (ограничьте домен ключа в dashboard API-Sports).
+3. Админка → **API-Football**: привязать команды → матчи → «Синхронизировать сейчас».
+4. Cron на Beget каждые 3 мин: `curl -s "https://ВАШ-ДОМЕН/cron_api_football_sync.php?token=CRON_TOKEN"`.
 
 Официальный календарь: https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/articles/match-schedule-fixtures-results-teams-stadiums
 

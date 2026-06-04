@@ -7,6 +7,7 @@
         <a class="button small" href="/admin/users">Участники</a>
         <a class="button small secondary" href="/admin/settings">Тексты и контакты</a>
         <a class="button small secondary" href="/admin/matches">Матчи</a>
+        <a class="button small secondary" href="/admin/api-football">API-Football</a>
         <a class="button small secondary" href="/admin/teams">Команды</a>
         <a class="button small secondary" href="/admin/mini-leagues">Мини-лиги</a>
         <a class="button small secondary" href="/admin/password">Сменить пароль</a>

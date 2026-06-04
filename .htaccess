@@ -1,6 +1,8 @@
 RewriteEngine On
 
 RewriteRule ^assets/(.*)$ public/assets/$1 [L]
+RewriteRule ^cron_match_reminders\.php$ public/cron_match_reminders.php [L]
+RewriteRule ^cron_api_football_sync\.php$ public/cron_api_football_sync.php [L]
 RewriteRule ^$ public/index.php [L]
 
 RewriteCond %{REQUEST_URI} !^/public/

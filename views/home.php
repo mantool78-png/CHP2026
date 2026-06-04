@@ -269,7 +269,9 @@ $homePredictUser = $homeUser
                                         <?= (int) $homeFreeRem > 0 ? 'Можно бесплатно' : 'Нужна оплата' ?>
                                     </span>
                                 <?php endif; ?>
-                                <?php if ($match['home_score'] !== null && $match['away_score'] !== null): ?>
+                                <?php if (($match['status'] ?? '') === 'live'): ?>
+                                    <span class="pill live-pill">LIVE</span>
+                                <?php elseif ($match['home_score'] !== null && $match['away_score'] !== null): ?>
                                     <span class="pill">Результат: <?= (int) $match['home_score'] ?>:<?= (int) $match['away_score'] ?></span>
                                 <?php endif; ?>
                                 <?php if ($score): ?>

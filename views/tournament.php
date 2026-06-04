@@ -8,6 +8,10 @@
         <p class="eyebrow">ЧМ-2026</p>
         <h1>Турнир</h1>
         <p class="lead">Таблицы групп по сыгранным матчам (жеребьёвка ФИФА, 12 групп по 4 команды) и сетка плей-офф. Сортировка: очки, разница мячей, забитые.</p>
+        <?php $tournamentLastSync = api_football_last_sync_at(); ?>
+        <?php if ($tournamentLastSync): ?>
+            <p class="muted small-print">Зачёт конкурса по результатам на этом сайте; данные обновлялись <?= h(date('d.m.Y H:i', strtotime($tournamentLastSync))) ?> МСК.</p>
+        <?php endif; ?>
     </div>
 </section>
 

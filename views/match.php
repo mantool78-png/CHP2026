@@ -76,7 +76,12 @@ if (!function_exists('match_page_render_form_badges')) {
     <div class="card match-dashboard-card">
         <div class="match-dashboard-header">
             <span class="match-dashboard-stage"><?= h($match['stage']) ?></span>
-            <span class="match-dashboard-time"><?= h(date('d.m.Y H:i', strtotime($match['starts_at']))) ?> МСК</span>
+            <span class="match-dashboard-time">
+                <?php if (($match['status'] ?? '') === 'live'): ?>
+                    <span class="pill live-pill">LIVE</span>
+                <?php endif; ?>
+                <?= h(date('d.m.Y H:i', strtotime($match['starts_at']))) ?> МСК
+            </span>
         </div>
 
         <!-- Дуэль команд -->
@@ -97,6 +102,8 @@ if (!function_exists('match_page_render_form_badges')) {
                         <span class="score-colon">:</span>
                         <span class="score-num"><?= (int) $match['away_score'] ?></span>
                     </div>
+                <?php elseif (($match['status'] ?? '') === 'live'): ?>
+                    <div class="match-vs-badge live-pill-text">LIVE</div>
                 <?php else: ?>
                     <div class="match-vs-badge">VS</div>
                 <?php endif; ?>

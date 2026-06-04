@@ -66,4 +66,18 @@ return [
         // Секрет для GET https://ваш-сайт/cron_match_reminders.php?token=...
         'reminder_cron_token' => 'сгенерируйте_длинную_случайную_строку',
     ],
+    // API-Football (api-sports.io): авто-результаты и опционально виджеты.
+    // Ключ: https://dashboard.api-football.com — ограничьте домен сайта в настройках ключа.
+    'api_football' => [
+        'enabled' => false,
+        'base_url' => 'https://v3.football.api-sports.io',
+        'api_key' => '',
+        'league_id' => 1,
+        'season' => 2026,
+        'timezone' => 'Europe/Moscow',
+        'cron_token' => 'сгенерируйте_длинную_случайную_строку_для_cron',
+        // Виджеты на /matches (ключ виден в браузере — только с domain lock в dashboard).
+        'widgets_enabled' => false,
+        'widgets_cache_seconds' => 120,
+    ],
 ];

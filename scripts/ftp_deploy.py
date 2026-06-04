@@ -26,16 +26,19 @@ def load_env(path: Path) -> dict[str, str]:
 
 # (local relative path, remote directory from FTP root, remote filename)
 PAIRS: list[tuple[str, str, str]] = [
+    (".htaccess", "/", ".htaccess"),
     ("app/bootstrap.php", "/app", "bootstrap.php"),
     ("app/mail.php", "/app", "mail.php"),
     ("app/match_reminders.php", "/app", "match_reminders.php"),
     ("app/admin_routes.php", "/app", "admin_routes.php"),
     ("app/domain.php", "/app", "domain.php"),
+    ("app/api_football.php", "/app", "api_football.php"),
     ("app/worldcup2026_groups.php", "/app", "worldcup2026_groups.php"),
     ("app/migration_runner_008.php", "/app", "migration_runner_008.php"),
     ("public/index.php", "/public", "index.php"),
     ("public/apply_migration_008.php", "/public", "apply_migration_008.php"),
     ("public/cron_match_reminders.php", "/public", "cron_match_reminders.php"),
+    ("public/cron_api_football_sync.php", "/public", "cron_api_football_sync.php"),
     ("public/assets/styles.css", "/public/assets", "styles.css"),
     ("public/assets/logo.png", "/public/assets", "logo.png"),
     ("public/assets/favicon.ico", "/public/assets", "favicon.ico"),
@@ -73,6 +76,8 @@ PAIRS: list[tuple[str, str, str]] = [
     ("views/partials/yandex_metrika.php", "/views/partials", "yandex_metrika.php"),
     ("views/admin/index.php", "/views/admin", "index.php"),
     ("views/admin/matches.php", "/views/admin", "matches.php"),
+    ("views/admin/api_football.php", "/views/admin", "api_football.php"),
+    ("views/partials/api_football_widgets.php", "/views/partials", "api_football_widgets.php"),
     ("views/admin/site_settings.php", "/views/admin", "site_settings.php"),
     ("views/admin/teams.php", "/views/admin", "teams.php"),
     ("views/admin/user_detail.php", "/views/admin", "user_detail.php"),
@@ -94,10 +99,14 @@ PAIRS: list[tuple[str, str, str]] = [
     ("database/migrations/006_prediction_reminder_log.sql", "/database/migrations", "006_prediction_reminder_log.sql"),
     ("database/migrations/007_teams_match_card_fields.sql", "/database/migrations", "007_teams_match_card_fields.sql"),
     ("database/migrations/008_tournament_groups_playoff.sql", "/database/migrations", "008_tournament_groups_playoff.sql"),
+    ("database/migrations/009_api_football.sql", "/database/migrations", "009_api_football.sql"),
     # Создаёт на сервере каталог вне public для загрузок чеков (пустой маркер).
     ("storage/payment_receipts/.gitkeep", "/storage/payment_receipts", ".gitkeep"),
     ("scripts/cli_match_reminders.php", "/scripts", "cli_match_reminders.php"),
     ("scripts/apply_migration_008.php", "/scripts", "apply_migration_008.php"),
+    ("scripts/apply_migration_009.php", "/scripts", "apply_migration_009.php"),
+    ("scripts/cli_api_football_sync.php", "/scripts", "cli_api_football_sync.php"),
+    ("storage/cache/.gitkeep", "/storage/cache", ".gitkeep"),
 ]
 
 _flags_dir = ROOT / "public" / "assets" / "flags"

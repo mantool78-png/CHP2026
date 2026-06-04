@@ -342,9 +342,18 @@ function match_prediction_distribution(int $matchId): array
     return $stats;
 }
 
+function match_status_label(string $status): string
+{
+    return match ($status) {
+        'live' => 'Идёт матч',
+        'finished' => 'Завершён',
+        default => 'Запланирован',
+    };
+}
+
 function prediction_locked(array $match): bool
 {
-    if (($match['status'] ?? '') === 'finished') {
+    if (in_array($match['status'] ?? '', ['finished', 'live'], true)) {
         return true;
     }
 
@@ -486,6 +495,54 @@ function match_outcome(int $homeScore, int $awayScore): string
     }
 
     return 'draw';
+}
+
+/**
+ * @throws RuntimeException
+ */
+function apply_match_result(int $matchId, int $homeScore, int $awayScore, string $source = 'manual'): void
+{
+    if (!in_array($source, ['manual', 'api'], true)) {
+        $source = 'manual';
+    }
+
+    $teamsStmt = db()->prepare('SELECT home_team_id, away_team_id FROM matches WHERE id = ?');
+    $teamsStmt->execute([$matchId]);
+    $teamsRow = $teamsStmt->fetch();
+    if (!$teamsRow) {
+        throw new RuntimeException('Матч не найден.');
+    }
+    if ($teamsRow['home_team_id'] === null || $teamsRow['away_team_id'] === null) {
+        throw new RuntimeException('Назначьте обе команды в матче.');
+    }
+
+    $homeScore = max(0, $homeScore);
+    $awayScore = max(0, $awayScore);
+
+    $stmt = db()->prepare(
+        "UPDATE matches
+         SET home_score = ?, away_score = ?, status = 'finished', result_source = ?, api_synced_at = NOW(), updated_at = NOW()
+         WHERE id = ?"
+    );
+    $stmt->execute([$homeScore, $awayScore, $source, $matchId]);
+    recalculate_scores($matchId);
+}
+
+function clear_match_result(int $matchId): void
+{
+    db()->prepare('DELETE FROM scores WHERE match_id = ?')->execute([$matchId]);
+
+    $stmt = db()->prepare('SELECT api_fixture_id FROM matches WHERE id = ?');
+    $stmt->execute([$matchId]);
+    $match = $stmt->fetch();
+    $hasApi = $match && $match['api_fixture_id'] !== null && (int) $match['api_fixture_id'] > 0;
+    $resultSource = $hasApi ? 'api' : 'manual';
+
+    db()->prepare(
+        "UPDATE matches
+         SET home_score = NULL, away_score = NULL, status = 'scheduled', result_source = ?, updated_at = NOW()
+         WHERE id = ?"
+    )->execute([$resultSource, $matchId]);
 }
 
 function recalculate_scores(?int $matchId = null): void

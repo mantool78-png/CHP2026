@@ -8,6 +8,8 @@ Thumbs.db
 # Загруженные чеки (вне репозитория)
 storage/payment_receipts/*
 !storage/payment_receipts/.gitkeep
+storage/cache/*
+!storage/cache/.gitkeep
 
 # Локальные бэкапы и временные деплой-архивы
 backups/

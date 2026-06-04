@@ -42,8 +42,10 @@ CREATE TABLE teams (
     fifa_rank SMALLINT UNSIGNED NULL,
     brief_note VARCHAR(600) NULL,
     form_last5 VARCHAR(40) NULL,
+    api_team_id INT UNSIGNED NULL,
     created_at DATETIME NOT NULL,
-    updated_at DATETIME NOT NULL
+    updated_at DATETIME NOT NULL,
+    UNIQUE KEY teams_api_team_id_unique (api_team_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE matches (
@@ -58,8 +60,12 @@ CREATE TABLE matches (
     home_score TINYINT UNSIGNED NULL,
     away_score TINYINT UNSIGNED NULL,
     status ENUM('scheduled', 'live', 'finished') NOT NULL DEFAULT 'scheduled',
+    api_fixture_id INT UNSIGNED NULL,
+    result_source ENUM('manual', 'api') NOT NULL DEFAULT 'manual',
+    api_synced_at DATETIME NULL,
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
+    UNIQUE KEY matches_api_fixture_id_unique (api_fixture_id),
     INDEX matches_starts_at_idx (starts_at),
     CONSTRAINT matches_home_team_fk FOREIGN KEY (home_team_id) REFERENCES teams(id),
     CONSTRAINT matches_away_team_fk FOREIGN KEY (away_team_id) REFERENCES teams(id)
@@ -85,6 +91,16 @@ CREATE TABLE prediction_reminder_log (
     PRIMARY KEY (user_id, match_id),
     CONSTRAINT prediction_reminder_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT prediction_reminder_match_fk FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE api_football_sync_log (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    match_id INT UNSIGNED NULL,
+    action VARCHAR(40) NOT NULL,
+    message VARCHAR(500) NOT NULL,
+    created_at DATETIME NOT NULL,
+    INDEX api_football_sync_log_created_idx (created_at),
+    CONSTRAINT api_football_sync_log_match_fk FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE scores (

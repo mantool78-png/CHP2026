@@ -3777,3 +3777,26 @@ pre {
         grid-row: 3;
     }
 }
+
+.pill.live-pill,
+.live-pill-text {
+    background: rgba(220, 38, 38, 0.2);
+    border-color: rgba(248, 113, 113, 0.55);
+    color: #fecaca;
+}
+
+.match-row-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.35rem;
+}
+
+.api-football-widgets-wrap {
+    margin-top: 1rem;
+}
+
+.api-football-widgets-wrap api-sports-widget {
+    display: block;
+    min-height: 200px;
+}

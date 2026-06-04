@@ -402,5 +402,6 @@ function clear_failed_logins(string $email): void
 }
 
 require __DIR__ . '/domain.php';
+require __DIR__ . '/api_football.php';
 require __DIR__ . '/mail.php';
 require __DIR__ . '/match_reminders.php';

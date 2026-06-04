@@ -600,6 +600,49 @@ if ($method === 'POST' && $path === '/admin/user/reset-password') {
     redirect('/admin/user?id=' . $userId);
 }
 
+if ($method === 'POST' && $path === '/admin/user/rename') {
+    verify_csrf();
+    require_admin();
+
+    $userId = (int) ($_POST['user_id'] ?? 0);
+    $name = normalize_participant_display_name((string) ($_POST['name'] ?? ''));
+
+    $check = db()->prepare("SELECT id, name FROM users WHERE id = ? AND role = 'participant' LIMIT 1");
+    $check->execute([$userId]);
+    $participantRow = $check->fetch();
+    if (!$participantRow) {
+        flash('error', 'Участник не найден.');
+        redirect('/admin/users');
+    }
+
+    if ($name === '' || mb_strlen($name) < 2) {
+        flash('error', 'Укажите ник не короче 2 символов.');
+        redirect('/admin/user?id=' . $userId);
+    }
+
+    if (mb_strlen($name) > 120) {
+        flash('error', 'Ник не длиннее 120 символов.');
+        redirect('/admin/user?id=' . $userId);
+    }
+
+    $currentName = normalize_participant_display_name((string) $participantRow['name']);
+    if (mb_strtolower($name, 'UTF-8') === mb_strtolower($currentName, 'UTF-8')) {
+        flash('notice', 'Ник не изменился.');
+        redirect('/admin/user?id=' . $userId);
+    }
+
+    if (participant_display_name_taken($name, $userId)) {
+        flash('error', 'Такой ник уже занят другим участником. Выберите другое имя.');
+        redirect('/admin/user?id=' . $userId);
+    }
+
+    $stmt = db()->prepare('UPDATE users SET name = ?, updated_at = NOW() WHERE id = ? AND role = ?');
+    $stmt->execute([$name, $userId, 'participant']);
+
+    flash('success', 'Ник участника обновлён: «' . $name . '».');
+    redirect('/admin/user?id=' . $userId);
+}
+
 if ($method === 'POST' && $path === '/admin/users/activate') {
     verify_csrf();
     require_admin();
@@ -666,6 +709,127 @@ if ($method === 'POST' && $path === '/admin/users/delete') {
 
     flash('success', 'Участник удалён вместе с прогнозами и связанными данными.');
     redirect('/admin/users');
+}
+
+if ($method === 'GET' && $path === '/admin/api-football') {
+    require_admin();
+
+    if (!api_football_schema_ready()) {
+        view('admin/api_football', [
+            'configured' => api_football_configured(),
+            'settings' => api_football_settings(),
+            'schemaReady' => false,
+            'migrationUrl' => absolute_url('/public/apply_migration_009.php?token=' . rawurlencode(api_football_cron_token() ?: mail_settings()['reminder_cron_token'])),
+            'lastSyncAt' => null,
+            'syncLog' => [],
+            'teamStats' => ['total' => 0, 'mapped' => 0],
+            'matchStats' => ['total' => 0, 'mapped' => 0, 'api_source' => 0, 'manual_scored' => 0],
+            'unmappedMatches' => [],
+        ]);
+        return;
+    }
+
+    $teamStats = api_football_worldcup_team_stats();
+
+    $matchStats = db()->query(
+        "SELECT
+            COUNT(*) AS total,
+            SUM(api_fixture_id IS NOT NULL) AS mapped,
+            SUM(result_source = 'api') AS api_source,
+            SUM(result_source = 'manual' AND home_score IS NOT NULL) AS manual_scored
+         FROM matches
+         WHERE home_team_id IS NOT NULL AND away_team_id IS NOT NULL"
+    )->fetch();
+
+    $unmappedMatches = db()->query(
+        "SELECT m.id, m.stage, m.starts_at, m.api_fixture_id, m.result_source,
+                ht.name AS home_team, at.name AS away_team,
+                ht.api_team_id AS home_api, at.api_team_id AS away_api
+         FROM matches m
+         LEFT JOIN teams ht ON ht.id = m.home_team_id
+         LEFT JOIN teams at ON at.id = m.away_team_id
+         WHERE m.home_team_id IS NOT NULL AND m.away_team_id IS NOT NULL
+           AND (m.api_fixture_id IS NULL OR ht.api_team_id IS NULL OR at.api_team_id IS NULL)
+         ORDER BY m.starts_at ASC
+         LIMIT 80"
+    )->fetchAll();
+
+    view('admin/api_football', [
+        'configured' => api_football_configured(),
+        'settings' => api_football_settings(),
+        'schemaReady' => true,
+        'migrationUrl' => '',
+        'lastSyncAt' => api_football_last_sync_at(),
+        'syncLog' => api_football_recent_sync_log(25),
+        'teamStats' => $teamStats,
+        'matchStats' => $matchStats ?: ['total' => 0, 'mapped' => 0, 'api_source' => 0, 'manual_scored' => 0],
+        'unmappedMatches' => $unmappedMatches,
+    ]);
+    return;
+}
+
+if ($method === 'POST' && $path === '/admin/api-football/map-teams') {
+    verify_csrf();
+    require_admin();
+    if (!api_football_configured()) {
+        flash('error', 'Включите API-Football в config.php (enabled и api_key).');
+        redirect('/admin/api-football');
+    }
+    try {
+        $r = api_football_map_teams();
+    } catch (Throwable $e) {
+        flash('error', 'Ошибка привязки команд: ' . $e->getMessage());
+        redirect('/admin/api-football');
+    }
+    $msg = 'Команды: привязано ' . $r['mapped'] . ', пропущено ' . $r['skipped'] . '.';
+    if ($r['errors'] !== []) {
+        flash('error', $msg . ' Ошибки: ' . implode('; ', array_slice($r['errors'], 0, 5)));
+    } else {
+        flash('success', $msg);
+    }
+    redirect('/admin/api-football');
+}
+
+if ($method === 'POST' && $path === '/admin/api-football/map-fixtures') {
+    verify_csrf();
+    require_admin();
+    if (!api_football_configured()) {
+        flash('error', 'Включите API-Football в config.php.');
+        redirect('/admin/api-football');
+    }
+    try {
+        $r = api_football_map_fixtures();
+    } catch (Throwable $e) {
+        flash('error', 'Ошибка привязки матчей: ' . $e->getMessage());
+        redirect('/admin/api-football');
+    }
+    $msg = 'Матчи: привязано ' . $r['mapped'] . ', неоднозначно ' . $r['ambiguous'] . ', без пары ' . $r['unmatched'] . '.';
+    if ($r['errors'] !== []) {
+        flash('error', $msg . ' ' . implode('; ', array_slice($r['errors'], 0, 3)));
+    } else {
+        flash('success', $msg);
+    }
+    redirect('/admin/api-football');
+}
+
+if ($method === 'POST' && $path === '/admin/api-football/sync-now') {
+    verify_csrf();
+    require_admin();
+    if (!api_football_configured()) {
+        flash('error', 'Включите API-Football в config.php.');
+        redirect('/admin/api-football');
+    }
+    try {
+        $r = run_api_football_sync();
+    } catch (Throwable $e) {
+        flash('error', 'Ошибка синхронизации: ' . $e->getMessage());
+        redirect('/admin/api-football');
+    }
+    flash(
+        'success',
+        'Синхронизация: проверено ' . $r['checked'] . ', завершено ' . $r['finished'] . ', live ' . $r['live'] . ', ошибок ' . $r['errors'] . '.'
+    );
+    redirect('/admin/api-football');
 }
 
 if ($method === 'GET' && $path === '/admin/matches') {
@@ -851,35 +1015,20 @@ if ($method === 'POST' && $path === '/admin/results') {
     }
 
     if (!empty($_POST['clear_result'])) {
-        db()->prepare('DELETE FROM scores WHERE match_id = ?')->execute([$matchId]);
-        db()->prepare(
-            "UPDATE matches
-             SET home_score = NULL, away_score = NULL, status = 'scheduled', updated_at = NOW()
-             WHERE id = ?"
-        )->execute([$matchId]);
-
+        clear_match_result($matchId);
         flash('success', 'Результат сброшен, начисленные за матч очки удалены из зачёта.');
     } else {
-        $teamsStmt = db()->prepare('SELECT home_team_id, away_team_id FROM matches WHERE id = ?');
-        $teamsStmt->execute([$matchId]);
-        $teamsRow = $teamsStmt->fetch();
-        if (!$teamsRow || $teamsRow['home_team_id'] === null || $teamsRow['away_team_id'] === null) {
-            flash('error', 'Назначьте обе команды в матче, прежде чем вводить счёт.');
-            redirect('/admin/matches');
+        try {
+            apply_match_result(
+                $matchId,
+                max(0, (int) ($_POST['home_score'] ?? 0)),
+                max(0, (int) ($_POST['away_score'] ?? 0)),
+                'manual'
+            );
+            flash('success', 'Результат сохранён, очки пересчитаны.');
+        } catch (RuntimeException $e) {
+            flash('error', $e->getMessage());
         }
-
-        $homeScore = max(0, (int) ($_POST['home_score'] ?? 0));
-        $awayScore = max(0, (int) ($_POST['away_score'] ?? 0));
-
-        $stmt = db()->prepare(
-            "UPDATE matches
-             SET home_score = ?, away_score = ?, status = 'finished', updated_at = NOW()
-             WHERE id = ?"
-        );
-        $stmt->execute([$homeScore, $awayScore, $matchId]);
-        recalculate_scores($matchId);
-
-        flash('success', 'Результат сохранён, очки пересчитаны.');
     }
     $stageKeys = ['all', 'group', 'round32', 'round16', 'quarter', 'semi', 'third', 'final'];
     $returnStage = (string) ($_POST['return_stage'] ?? 'all');

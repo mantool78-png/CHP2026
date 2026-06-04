@@ -5,6 +5,7 @@
     </div>
     <div class="actions">
         <a class="button small" href="/admin/matches/import">Импорт матчей</a>
+        <a class="button small secondary" href="/admin/api-football">API-Football</a>
         <a class="button small secondary" href="/admin">Назад</a>
     </div>
 </section>
@@ -59,6 +60,7 @@
                         <th>Слот</th>
                         <th>Старт</th>
                         <th>Счет</th>
+                        <th>API</th>
                         <th>Результат</th>
                     </tr>
                 </thead>
@@ -79,6 +81,17 @@
                             <td><?= h(date('d.m.Y H:i', strtotime((string) $match['starts_at']))) ?></td>
                             <td>
                                 <?= $match['home_score'] === null ? '—' : (int) $match['home_score'] . ' : ' . (int) $match['away_score'] ?>
+                                <?php if (($match['status'] ?? '') === 'live'): ?>
+                                    <span class="pill">LIVE</span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="small-print">
+                                <?php if (!empty($match['api_fixture_id'])): ?>
+                                    #<?= (int) $match['api_fixture_id'] ?>
+                                    <span class="muted">(<?= h((string) ($match['result_source'] ?? 'manual')) ?>)</span>
+                                <?php else: ?>
+                                    —
+                                <?php endif; ?>
                             </td>
                             <td>
                                 <?php if ($hasTeams): ?>
@@ -108,7 +121,7 @@
                             </td>
                         </tr>
                         <tr class="admin-match-edit-row">
-                            <td colspan="5">
+                            <td colspan="6">
                                 <details class="admin-match-edit-details">
                                     <summary>Редактировать слот и команды</summary>
                                     <form method="post" action="/admin/matches/update" class="admin-form admin-match-edit-form">

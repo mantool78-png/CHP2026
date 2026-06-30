@@ -51,6 +51,15 @@
     </div>
 </section>
 
+<section class="card stage-prizes-section">
+    <h2>Промежуточные призы по этапам</h2>
+    <?php require __DIR__ . '/partials/stage_prizes_table.php'; ?>
+    <p class="muted small-print stage-prizes-table-foot">
+        Подробные таблицы очков за каждый период — на странице
+        <a class="table-link" href="/rating/stages">«Рейтинг по этапам»</a>.
+    </p>
+</section>
+
 <section class="card">
     <h2>Участие и взнос</h2>
     <?php $transparencyMode = 'compact'; require __DIR__ . '/partials/organizer_transparency.php'; ?>

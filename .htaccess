@@ -3,6 +3,17 @@ RewriteEngine On
 RewriteRule ^assets/(.*)$ public/assets/$1 [L]
 RewriteRule ^cron_match_reminders\.php$ public/cron_match_reminders.php [L]
 RewriteRule ^cron_api_football_sync\.php$ public/cron_api_football_sync.php [L]
+RewriteRule ^cron_api_football_probe\.php$ public/cron_api_football_probe.php [L]
+RewriteRule ^cron_payment_reminders\.php$ public/cron_payment_reminders.php [L]
+RewriteRule ^cron_last_free_match_payment\.php$ public/cron_last_free_match_payment.php [L]
+RewriteRule ^cron_audit_free_trial\.php$ public/cron_audit_free_trial.php [L]
+RewriteRule ^cron_opening_match_reminder\.php$ public/cron_opening_match_reminder.php [L]
+RewriteRule ^cron_home_activity\.php$ public/cron_home_activity.php [L]
+RewriteRule ^cron_weekly_digest\.php$ public/cron_weekly_digest.php [L]
+RewriteRule ^apply_migration_012\.php$ public/apply_migration_012.php [L]
+RewriteRule ^apply_migration_013\.php$ public/apply_migration_013.php [L]
+RewriteRule ^apply_migration_014\.php$ public/apply_migration_014.php [L]
+RewriteRule ^apply_migration_015\.php$ public/apply_migration_015.php [L]
 RewriteRule ^$ public/index.php [L]
 
 RewriteCond %{REQUEST_URI} !^/public/

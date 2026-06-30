@@ -20,8 +20,10 @@ return [
             4 => 4000,
             5 => 2000,
         ],
+        // Промежуточные призы (6 × 1000 ₽ по умолчанию: 1–3 тур, 1/16, 1/8, финальный отрезок).
+        // 'stage_prizes' => [ ... ],
         'prediction_lock_minutes' => 5,
-        'free_prediction_limit' => 5,
+        'free_prediction_limit' => 8,
         'champion_prediction_deadline' => '',
         // Личный кабинет (до оплаты). Можно переопределить в админке: «Тексты оплаты».
         'payment_instructions' => 'Оплата — переводом на счёт в Сбербанке.' . "\n\n"
@@ -35,8 +37,12 @@ return [
         'organizer_contact' => '',
         // Яндекс.Метрика: числовой ID счётчика из интерфейса Метрики. 0 или пусто — код не подключается.
         'yandex_metrika_id' => 0,
-        // Канонический URL сайта (https://домен) — для писем и cron, когда нет HTTP-запроса.
+        // Канонический URL сайта (https://домен) — для писем, ссылок и cron (не доверяйте HTTP_HOST на проде).
         'public_site_url' => '',
+        // Подробные ошибки БД в браузере. На проде всегда false.
+        'debug' => false,
+        // Веб-скрипты public/apply_migration_*.php. После применения миграций на проде — false.
+        'web_migrations_enabled' => true,
         // Организатор (для условий участия и прозрачности взносов).
         'organizer_person_name' => 'Федоров Павел Олегович',
         'organizer_telegram_url' => 'https://t.me/Mantoo1978',
@@ -65,6 +71,10 @@ return [
         'smtp_encryption' => 'tls',
         // Секрет для GET https://ваш-сайт/cron_match_reminders.php?token=...
         'reminder_cron_token' => 'сгенерируйте_длинную_случайную_строку',
+        // Письма с результатом матча участникам, которые ставили прогноз (после сохранения счёта).
+        'match_result_notifications_enabled' => true,
+        // Отдельный токен для apply_migration_*.php (рекомендуется). Пусто — используется reminder_cron_token.
+        'migration_web_token' => '',
     ],
     // API-Football (api-sports.io): авто-результаты и опционально виджеты.
     // Ключ: https://dashboard.api-football.com — ограничьте домен сайта в настройках ключа.
@@ -72,12 +82,18 @@ return [
         'enabled' => false,
         'base_url' => 'https://v3.football.api-sports.io',
         'api_key' => '',
+        // Отдельный ключ только для виджетов в браузере (domain lock). Пусто — используется api_key.
+        'widget_api_key' => '',
         'league_id' => 1,
         'season' => 2026,
         'timezone' => 'Europe/Moscow',
         'cron_token' => 'сгенерируйте_длинную_случайную_строку_для_cron',
-        // Виджеты на /matches (ключ виден в браузере — только с domain lock в dashboard).
+        // Виджеты на /matches и /tournament (ключ в браузере — domain lock в dashboard).
+        // Переключатель в админке /admin/api-football имеет приоритет над этим флагом.
         'widgets_enabled' => false,
         'widgets_cache_seconds' => 120,
+        // Статистический обзор на карточке матча (endpoint /predictions API-Football).
+        'predictions_enabled' => true,
+        'predictions_cache_seconds' => 86400,
     ],
 ];

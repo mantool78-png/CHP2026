@@ -105,7 +105,7 @@ tar -czf ~/backup-site-$(date +%Y%m%d).tgz app public views config
 ### API-Football (опционально)
 
 1. Миграция: `php scripts/apply_migration_009.php` (или `database/migrations/009_api_football.sql` в phpMyAdmin).
-2. В `config/config.php`: секция `api_football` — `enabled`, `api_key`, `cron_token`; для виджетов на `/matches` — `widgets_enabled` (ограничьте домен ключа в dashboard API-Sports).
+2. В `config/config.php`: секция `api_football` — `enabled`, `api_key`, `cron_token`; виджеты на `/matches` и `/tournament` — `widgets_enabled` или переключатель в `/admin/api-football` (ограничьте домен ключа в dashboard API-Sports).
 3. Админка → **API-Football**: привязать команды → матчи → «Синхронизировать сейчас».
 4. Cron на Beget каждые 3 мин: `curl -s "https://ВАШ-ДОМЕН/cron_api_football_sync.php?token=CRON_TOKEN"`.
 

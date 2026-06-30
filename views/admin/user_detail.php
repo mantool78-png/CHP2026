@@ -115,6 +115,20 @@
 <?php endif; ?>
 
 <section class="card auth-card">
+    <h2>Ник в игре</h2>
+    <p class="muted">Отображается в рейтинге и мини-лигах. Имена участников не должны повторяться (без учёта регистра букв).</p>
+    <form method="post" action="/admin/user/rename" class="stack">
+        <?= csrf_field() ?>
+        <input type="hidden" name="user_id" value="<?= (int) $participant['id'] ?>">
+        <label>
+            Имя, фамилия или ник
+            <input type="text" name="name" required minlength="2" maxlength="120" value="<?= h($participant['name']) ?>" autocomplete="off">
+        </label>
+        <button class="button secondary" type="submit">Сохранить ник</button>
+    </form>
+</section>
+
+<section class="card auth-card">
     <h2>Сброс пароля</h2>
     <p class="muted">Рассылаем участнику только по известному каналу (Telegram и т.д.). Почта с сайта не отправляется.</p>
     <form method="post" action="/admin/user/reset-password" class="stack">

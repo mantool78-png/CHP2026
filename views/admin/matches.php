@@ -36,8 +36,19 @@
     </form>
 </section>
 
+<?php
+    $participantTotal = (int) ($participantTotal ?? 0);
+    $predictionCounts = $predictionCounts ?? [];
+    $missingByMatch = $missingByMatch ?? [];
+    $mailConfigured = (bool) ($mailConfigured ?? false);
+?>
+
 <section class="card">
     <h2>Расписание</h2>
+    <p class="muted small-print">
+        Для открытых матчей: колонка «Прогнозы» и блок «Без прогноза» — активные участники (оплачен взнос), у которых ещё нет прогноза.
+        Email-напоминание уходит только им.
+    </p>
     <div class="filter-tabs">
         <?php foreach ($stageFilters as $filterKey => $filterLabel): ?>
             <a
@@ -60,6 +71,7 @@
                         <th>Слот</th>
                         <th>Старт</th>
                         <th>Счет</th>
+                        <th>Прогнозы</th>
                         <th>API</th>
                         <th>Результат</th>
                     </tr>
@@ -71,8 +83,19 @@
                             $homeL = match_slot_home_label($match);
                             $awayL = match_slot_away_label($match);
                             $startsField = date('Y-m-d\TH:i', strtotime((string) $match['starts_at']));
+                            $matchId = (int) $match['id'];
+                            $reminderOpen = $hasTeams && !prediction_locked($match);
+                            $withPredictions = (int) ($predictionCounts[$matchId] ?? 0);
+                            $missingRecipients = $missingByMatch[$matchId] ?? [];
+                            $missingCount = count($missingRecipients);
+                            $remindedCount = 0;
+                            foreach ($missingRecipients as $recipient) {
+                                if (!empty($recipient['reminder_sent'])) {
+                                    $remindedCount++;
+                                }
+                            }
                         ?>
-                        <tr id="match-<?= (int) $match['id'] ?>" class="admin-match-row">
+                        <tr id="match-<?= $matchId ?>" class="admin-match-row">
                             <td>
                                 <strong><?= h($homeL) ?> — <?= h($awayL) ?></strong>
                                 <div class="muted small-print"><?= h((string) $match['stage']) ?></div>
@@ -81,8 +104,22 @@
                             <td><?= h(date('d.m.Y H:i', strtotime((string) $match['starts_at']))) ?></td>
                             <td>
                                 <?= $match['home_score'] === null ? '—' : (int) $match['home_score'] . ' : ' . (int) $match['away_score'] ?>
+                                <span class="muted small-print"><?= h(match_status_label((string) ($match['status'] ?? 'scheduled'))) ?></span>
                                 <?php if (($match['status'] ?? '') === 'live'): ?>
-                                    <span class="pill">LIVE</span>
+                                    <span class="pill live-pill">LIVE</span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="admin-match-predictions-cell">
+                                <?php if ($reminderOpen): ?>
+                                    <strong><?= $withPredictions ?></strong>
+                                    <span class="muted">/ <?= $participantTotal ?></span>
+                                    <?php if ($missingCount > 0): ?>
+                                        <div class="muted small-print">нет: <?= $missingCount ?></div>
+                                    <?php else: ?>
+                                        <div class="muted small-print">все поставили</div>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="muted">—</span>
                                 <?php endif; ?>
                             </td>
                             <td class="small-print">
@@ -120,8 +157,95 @@
                                 <?php endif; ?>
                             </td>
                         </tr>
+                        <?php if ($reminderOpen && $missingCount > 0): ?>
+                            <tr class="admin-match-reminder-row">
+                                <td colspan="7">
+                                    <details class="admin-match-reminder-details">
+                                        <summary>
+                                            Без прогноза (активные): <strong><?= $missingCount ?></strong>
+                                            <?php if ($remindedCount > 0): ?>
+                                                <span class="muted">(письмо уже: <?= $remindedCount ?>)</span>
+                                            <?php endif; ?>
+                                        </summary>
+                                        <div class="admin-match-reminder-panel">
+                                            <div class="table-scroll">
+                                                <table class="admin-match-reminder-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Участник</th>
+                                                            <th>Email</th>
+                                                            <th>Оплата</th>
+                                                            <th>Письмо</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <?php foreach ($missingRecipients as $recipient): ?>
+                                                            <tr>
+                                                                <td>
+                                                                    <a class="table-link" href="/admin/user?id=<?= (int) $recipient['id'] ?>">
+                                                                        <?= h($recipient['name']) ?>
+                                                                    </a>
+                                                                </td>
+                                                                <td><?= h($recipient['email']) ?></td>
+                                                                <td><?= h($recipient['payment_status']) ?></td>
+                                                                <td>
+                                                                    <?php if (!empty($recipient['reminder_sent']) && !empty($recipient['reminder_sent_at'])): ?>
+                                                                        <?= h(date('d.m.Y H:i', strtotime((string) $recipient['reminder_sent_at']))) ?>
+                                                                    <?php else: ?>
+                                                                        <span class="muted">—</span>
+                                                                    <?php endif; ?>
+                                                                </td>
+                                                            </tr>
+                                                        <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <?php if ($mailConfigured): ?>
+                                                <?php
+                                                    $pendingMailCount = $missingCount - $remindedCount;
+                                                    $mailLabel = $homeL . ' — ' . $awayL;
+                                                ?>
+                                                <div class="admin-match-reminder-actions actions">
+                                                    <?php if ($pendingMailCount > 0): ?>
+                                                        <form
+                                                            method="post"
+                                                            action="/admin/matches/send-reminders"
+                                                            onsubmit="return confirm('Отправить напоминание активным участникам без прогноза: <?= (int) $pendingMailCount ?> чел. по матчу «<?= h($mailLabel) ?>»?');"
+                                                        >
+                                                            <?= csrf_field() ?>
+                                                            <input type="hidden" name="match_id" value="<?= $matchId ?>">
+                                                            <input type="hidden" name="return_stage" value="<?= h($activeStage) ?>">
+                                                            <button class="button small" type="submit">
+                                                                Разослать напоминание (<?= (int) $pendingMailCount ?>)
+                                                            </button>
+                                                        </form>
+                                                    <?php endif; ?>
+                                                    <?php if ($remindedCount > 0): ?>
+                                                        <form
+                                                            method="post"
+                                                            action="/admin/matches/send-reminders"
+                                                            onsubmit="return confirm('Повторно отправить напоминание всем <?= (int) $missingCount ?> активным участникам без прогноза по матчу «<?= h($mailLabel) ?>»?');"
+                                                        >
+                                                            <?= csrf_field() ?>
+                                                            <input type="hidden" name="match_id" value="<?= $matchId ?>">
+                                                            <input type="hidden" name="return_stage" value="<?= h($activeStage) ?>">
+                                                            <input type="hidden" name="resend" value="1">
+                                                            <button class="button small secondary" type="submit">
+                                                                Повторить всем без прогноза (<?= (int) $missingCount ?>)
+                                                            </button>
+                                                        </form>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php else: ?>
+                                                <p class="muted small-print">Почта не настроена — рассылка недоступна.</p>
+                                            <?php endif; ?>
+                                        </div>
+                                    </details>
+                                </td>
+                            </tr>
+                        <?php endif; ?>
                         <tr class="admin-match-edit-row">
-                            <td colspan="6">
+                            <td colspan="7">
                                 <details class="admin-match-edit-details">
                                     <summary>Редактировать слот и команды</summary>
                                     <form method="post" action="/admin/matches/update" class="admin-form admin-match-edit-form">

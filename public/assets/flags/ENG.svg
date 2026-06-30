@@ -8,7 +8,7 @@
     </filter>
   </defs>
   <g clip-path="url(#wave-ENG)" filter="url(#sh-ENG)" transform="rotate(-1.5 36 24)">
-    <image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAADABAMAAACHeaf1AAAAD1BMVEXIEC7////xw8r0z9Xpn6seX9PCAAAAoUlEQVR42u3ZUQkAIBBEwQMtYAUTGMH+qQzg7yEq8wIs87/RUhqxVXKWAxAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEPAzYE9p7sCasxySJEmSJEmSJOnVrr8hPE2AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAR4EL3+TJbOxZZwcAAAAASUVORK5CYII=" x="0" y="0" width="72" height="48" preserveAspectRatio="xMidYMid slice"/>
+    <image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAASCAMAAAB2Mu6sAAAA9lBMVEVHcEzV1dXX19fPz8++vr7Gxsa9vb3Ly8vX19fX19fGxsafESmdECnIyMjIyMi+vr7R0dHPz8/Z2dnX19fS0tKiRkbBgY7BeomueH6LFy6tZnC3t7f////DDSnLEjPADCbMFTfJEC/GDiv4+Pj19fXp6enx8fHkl6PQ0NDl5eXliJrghZOVCRzY2Nj77fD109n++frpm6nV1dXJycn55+rLGjnuuMGrEzHr6+vSfIrNzc3v7++/v7+8vLzzy9L33+Pxxc3wwcn22t/URGDIFjnHOk63CyK9p6re3t7bY3fXVmvmj5/Pub3egJKtFjTLsbawFDO9foeeCqIsAAAAHHRSTlMAx5/H1We+sdW7G1Uv5sWft+RrIOgL/nt7C/4g0TSwBwAAAPpJREFUGBlNwV1PglAcwOHf+XMQdFMaEpjeVjet7/8Zum1t5YU1L1yWOpYvBxE65LQJz+PQb+f4Wrs2xgsMJx2Uat+OJjGL69+fq+Tzw66CjLKXdHz1mO056xm8KlxpyniuAk1FrbMwHE3xERosNXG5sDRoIApLSd3ygMNFpIcjs34HC0nGwM3dA9F2N5xpMRPA4rCEMVCQCgr5AqzFAZSCogDhSFM9GJvSKrzojf4cBLjfjPTgJedsV7DuB5VTperVd/SYpuWSf0KDUBNqQk1p8AbfGsrYbrlI0OHef1Y5ePNuyF02LUHrljwpR1zDyc2m6maZBWmbePYHHQlb/JKdICcAAAAASUVORK5CYII=" x="0" y="0" width="72" height="48" preserveAspectRatio="xMidYMid slice"/>
   </g>
   <path d="M1,6 C12,2 24,7 36,4 C48,1 60,6 71,4" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="0.6"/>
   <path d="M1,44 C12,47 24,42 36,45 C48,48 60,43 71,44" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="0.6"/>

@@ -8,7 +8,7 @@
     </filter>
   </defs>
   <g clip-path="url(#wave-SUI)" filter="url(#sh-SUI)" transform="rotate(-1.5 36 24)">
-    <image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAFAAQMAAAD3XjfpAAAABlBMVEX/AAD///9BHTQRAAAAT0lEQVRo3u3WsQkAIAwAwWzgSO6/jQMIESwFwUot7usb4CMkSZL0bTVnHQRBEARBEATBpZKbGgiCIAiCIHgbWlcQBEEQBEEQPIaSJEl61gB5R8eo7wNesQAAAABJRU5ErkJggg==" x="0" y="0" width="72" height="48" preserveAspectRatio="xMidYMid slice"/>
+    <image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAASCAMAAAB2Mu6sAAAAllBMVEVHcEzMAADVAQHBAADQAADSAQHKAQHUBwe7AADIAwPIAADHBga8AADJAQHKAwPMAwPJAwO6AADTAQG+AADFAAD/AAD/AAD////YAADQAAD/wsLwAADmAADdAAD/v7/FAADqAAD//f3MAAD/AQH/+fn/Fhb/3Nz/Gxv6AAD/IiL/T0//EBD/ysr/0ND/q6v/PDz/rKz/QkIOVAvCAAAAFXRSTlMAj8/Pt+FcUFBQsS8JpkonKuj32ffiXynpAAAAuElEQVQY03XR1w6DIBgFYHC1rmpHQAUHqHV1vv/LVUViMe25AfIR8ucAAACe5WumZkArBHMCeJhX10wpIaSgUXzSDMcwY27PsEvRknbigrSxCv1zWC5sIMHs8QdwpkKEUN015Qp8hSvGVYXxrRaw/wYRxjIVGJOUKFCisrmL51SQU5VNV/8EsctVeLEN2Aug4d1voCWUTuXJMiVwbo5t65ecRykd28+P7gwHGIgPCi3o6Gfdt7zx8AGBiB5kKLuH1AAAAABJRU5ErkJggg==" x="0" y="0" width="72" height="48" preserveAspectRatio="xMidYMid slice"/>
   </g>
   <path d="M1,6 C12,2 24,7 36,4 C48,1 60,6 71,4" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="0.6"/>
   <path d="M1,44 C12,47 24,42 36,45 C48,48 60,43 71,44" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="0.6"/>

@@ -50,7 +50,7 @@ $pageJsonLdBase = [
     <link rel="icon" href="/assets/favicon-32x32.png" type="image/png" sizes="32x32">
     <link rel="icon" href="/assets/favicon-16x16.png" type="image/png" sizes="16x16">
     <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
-    <link rel="stylesheet" href="/assets/styles.css?v=20260603-hero-no-gaps">
+    <link rel="stylesheet" href="/assets/styles.css?v=20260611-top-score-layout">
     <script type="application/ld+json"><?= json_encode($pageJsonLdBase, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
 </head>
 <body>
@@ -63,12 +63,18 @@ $pageJsonLdBase = [
             <a href="/matches">Матчи</a>
             <a href="/tournament">Турнир</a>
             <a href="/rating">Рейтинг</a>
+            <a href="/rating/stages">По турам</a>
+            <a href="/compare">Сравнить</a>
+            <a href="/predictions">Прогнозы</a>
             <a href="/prizes">Призы</a>
             <?php if ($user): ?>
                 <?php if (($user['role'] ?? '') !== 'admin'): ?>
                     <a href="/mini-leagues">Мини-лиги</a>
                 <?php endif; ?>
-                <a href="<?= ($user['role'] ?? '') === 'admin' ? '/admin' : '/dashboard' ?>">Кабинет</a>
+                <a
+                    href="<?= ($user['role'] ?? '') === 'admin' ? '/admin' : '/dashboard' ?>"
+                    class="<?= ($user['role'] ?? '') !== 'admin' ? 'nav-cabinet-accent' : '' ?>"
+                >Кабинет</a>
                 <form action="/logout" method="post" class="inline-form">
                     <?= csrf_field() ?>
                     <button type="submit" class="link-button">Выйти</button>
@@ -106,6 +112,7 @@ $pageJsonLdBase = [
                 <a href="/rules">Правила</a>
                 <a href="/matches">Матчи</a>
                 <a href="/rating">Рейтинг</a>
+                <a href="/predictions">Прогнозы</a>
                 <a href="/faq">Вопросы</a>
                 <a href="/terms">Условия участия</a>
                 <a href="/terms#organizer-transparency">Организатор и взносы</a>

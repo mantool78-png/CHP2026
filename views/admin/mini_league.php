@@ -30,11 +30,11 @@
                         <th>#</th>
                         <th>Участник</th>
                         <th>Очки</th>
-                        <th>Матчи</th>
-                        <th>Чемпион</th>
                         <th>Точные</th>
                         <th>Исходы</th>
                         <th>Прогнозы</th>
+                        <th>Очки чемп.</th>
+                        <th>Итого</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -44,12 +44,12 @@
                             <td>
                                 <a class="table-link" href="/admin/user?id=<?= (int) $leader['id'] ?>"><?= h($leader['name']) ?></a>
                             </td>
-                            <td><strong><?= (int) $leader['total_points'] ?></strong></td>
                             <td><?= (int) $leader['match_points'] ?></td>
-                            <td><?= (int) $leader['champion_points'] ?></td>
                             <td><?= (int) $leader['exact_scores_count'] ?></td>
                             <td><?= (int) $leader['outcomes_count'] ?></td>
                             <td><?= (int) $leader['predictions_count'] ?></td>
+                            <td><?= (int) $leader['champion_points'] ?></td>
+                            <td><strong><?= (int) $leader['total_points'] ?></strong></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>

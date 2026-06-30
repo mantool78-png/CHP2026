@@ -39,12 +39,44 @@ if ($method === 'GET' && $path === '/admin') {
         'collectedFeesRub' => $collectedFeesRub,
         'activeParticipantsTable' => $activeParticipantsTable,
         'pendingParticipantsTable' => $pendingParticipantsTable,
+        'pendingReminderRecipients' => pending_payment_reminder_recipients(),
+        'mailConfigured' => mail_is_configured(),
+        'paymentReceiptsTableReady' => db_table_exists('payment_receipts'),
+        'daysUntilKickoff' => contest_days_until_kickoff(),
         'teams' => teams_for_champion_select_with_current(
             $championTeamId ? ['team_id' => (int) $championTeamId] : null
         ),
         'championTeamId' => $championTeamId,
     ]);
     return;
+}
+
+if ($method === 'POST' && $path === '/admin/send-payment-reminders') {
+    verify_csrf();
+    require_admin();
+
+    if (!mail_is_configured()) {
+        flash('error', 'Почта не настроена (config.php → mail.enabled и from_email).');
+        redirect('/admin');
+    }
+
+    $recipients = pending_payment_reminder_recipients();
+    if ($recipients === []) {
+        flash('success', 'Некому отправлять: нет участников без оплаты и без загруженного чека.');
+        redirect('/admin');
+    }
+
+    $result = run_pending_payment_reminder_mailout();
+    if ($result['failed'] > 0) {
+        flash(
+            'error',
+            'Отправлено ' . $result['sent'] . ' из ' . $result['total'] . '. Ошибок: ' . $result['failed'] . '. Проверьте логи хостинга.'
+        );
+    } else {
+        flash('success', 'Напоминания об оплате отправлены: ' . $result['sent'] . ' писем.');
+    }
+
+    redirect('/admin');
 }
 
 if ($method === 'POST' && $path === '/admin/champion') {
@@ -505,10 +537,6 @@ if ($method === 'GET' && $path === '/admin/user') {
     $stmt = db()->prepare(
         "SELECT u.id, u.name, u.email, u.payment_status, u.created_at,
                 pay.amount_rub AS payment_amount_rub,
-                pr.original_name AS receipt_original_name,
-                pr.mime_type AS receipt_mime_type,
-                pr.size_bytes AS receipt_size_bytes,
-                pr.updated_at AS receipt_uploaded_at,
                 COALESCE(ps.predictions_count, 0) AS predictions_count,
                 COALESCE(ms.match_points, 0) AS match_points,
                 COALESCE(ms.exact_scores_count, 0) AS exact_scores_count,
@@ -533,7 +561,6 @@ if ($method === 'GET' && $path === '/admin/user') {
          LEFT JOIN champion_predictions cp ON cp.user_id = u.id
          LEFT JOIN teams champion ON champion.id = cp.team_id
          LEFT JOIN payments pay ON pay.user_id = u.id AND pay.status = 'confirmed'
-         LEFT JOIN payment_receipts pr ON pr.user_id = u.id
          WHERE u.id = ? AND u.role = 'participant'
          LIMIT 1"
     );
@@ -544,6 +571,14 @@ if ($method === 'GET' && $path === '/admin/user') {
         http_response_code(404);
         view('errors/404');
         return;
+    }
+
+    $receipt = payment_receipt_for_user($userId);
+    if ($receipt) {
+        $participant['receipt_original_name'] = $receipt['original_name'] ?? null;
+        $participant['receipt_mime_type'] = $receipt['mime_type'] ?? null;
+        $participant['receipt_size_bytes'] = $receipt['size_bytes'] ?? null;
+        $participant['receipt_uploaded_at'] = $receipt['updated_at'] ?? null;
     }
 
     $stmt = db()->prepare(
@@ -719,12 +754,17 @@ if ($method === 'GET' && $path === '/admin/api-football') {
             'configured' => api_football_configured(),
             'settings' => api_football_settings(),
             'schemaReady' => false,
-            'migrationUrl' => absolute_url('/public/apply_migration_009.php?token=' . rawurlencode(api_football_cron_token() ?: mail_settings()['reminder_cron_token'])),
+            'migrationUrl' => web_migrations_enabled() && migration_web_token() !== ''
+                ? absolute_url('/public/apply_migration_009.php?token=' . rawurlencode(migration_web_token()))
+                : '',
             'lastSyncAt' => null,
             'syncLog' => [],
+            'opsStats' => ['errors_24h' => 0, 'kickoff_updates_7d' => 0],
             'teamStats' => ['total' => 0, 'mapped' => 0],
             'matchStats' => ['total' => 0, 'mapped' => 0, 'api_source' => 0, 'manual_scored' => 0],
             'unmappedMatches' => [],
+            'widgetsEnabled' => false,
+            'widgetsConfigDefault' => !empty(api_football_settings()['widgets_enabled']),
         ]);
         return;
     }
@@ -754,6 +794,8 @@ if ($method === 'GET' && $path === '/admin/api-football') {
          LIMIT 80"
     )->fetchAll();
 
+    $apiPing = api_football_ping_api();
+
     view('admin/api_football', [
         'configured' => api_football_configured(),
         'settings' => api_football_settings(),
@@ -761,11 +803,34 @@ if ($method === 'GET' && $path === '/admin/api-football') {
         'migrationUrl' => '',
         'lastSyncAt' => api_football_last_sync_at(),
         'syncLog' => api_football_recent_sync_log(25),
+        'opsStats' => api_football_admin_dashboard_stats(),
         'teamStats' => $teamStats,
         'matchStats' => $matchStats ?: ['total' => 0, 'mapped' => 0, 'api_source' => 0, 'manual_scored' => 0],
         'unmappedMatches' => $unmappedMatches,
+        'widgetsEnabled' => api_football_widgets_enabled(),
+        'widgetsConfigDefault' => !empty(api_football_settings()['widgets_enabled']),
+        'outboundIp' => api_football_outbound_public_ip(),
+        'apiPing' => $apiPing,
     ]);
     return;
+}
+
+if ($method === 'POST' && $path === '/admin/api-football/toggle-widgets') {
+    verify_csrf();
+    require_admin();
+    if (!api_football_configured()) {
+        flash('error', 'Включите API-Football в config.php.');
+        redirect('/admin/api-football');
+    }
+    $enable = isset($_POST['enable']) && (string) $_POST['enable'] === '1';
+    api_football_set_widgets_enabled($enable);
+    flash(
+        'success',
+        $enable
+            ? 'Виджеты включены на /matches и /tournament. Ограничьте домен API-ключа в dashboard API-Sports.'
+            : 'Виджеты отключены (кэш «матчи сегодня» на сервере остаётся).'
+    );
+    redirect('/admin/api-football');
 }
 
 if ($method === 'POST' && $path === '/admin/api-football/map-teams') {
@@ -798,6 +863,7 @@ if ($method === 'POST' && $path === '/admin/api-football/map-fixtures') {
         redirect('/admin/api-football');
     }
     try {
+        api_football_sync_match_teams_from_api();
         $r = api_football_map_fixtures();
     } catch (Throwable $e) {
         flash('error', 'Ошибка привязки матчей: ' . $e->getMessage());
@@ -827,7 +893,12 @@ if ($method === 'POST' && $path === '/admin/api-football/sync-now') {
     }
     flash(
         'success',
-        'Синхронизация: проверено ' . $r['checked'] . ', завершено ' . $r['finished'] . ', live ' . $r['live'] . ', ошибок ' . $r['errors'] . '.'
+        'Синхронизация: проверено ' . $r['checked']
+        . ', завершено ' . $r['finished']
+        . ', live ' . $r['live']
+        . ', участники обновлены ' . ($r['teams_updated'] ?? 0)
+        . ', время обновлено ' . $r['schedule_updated']
+        . ', ошибок ' . $r['errors'] . '.'
     );
     redirect('/admin/api-football');
 }
@@ -866,14 +937,101 @@ if ($method === 'GET' && $path === '/admin/matches') {
          ORDER BY m.starts_at ASC"
     );
     $stmt->execute($params);
+    $matches = $stmt->fetchAll();
+
+    $reminderMatchIds = [];
+    foreach ($matches as $match) {
+        if (!match_slot_has_teams($match) || prediction_locked($match)) {
+            continue;
+        }
+        $reminderMatchIds[] = (int) $match['id'];
+    }
+
+    $predictionCounts = [];
+    if ($reminderMatchIds !== []) {
+        $placeholders = implode(',', array_fill(0, count($reminderMatchIds), '?'));
+        $countStmt = db()->prepare(
+            "SELECT match_id, COUNT(*) AS cnt
+             FROM predictions
+             WHERE match_id IN ($placeholders)
+             GROUP BY match_id"
+        );
+        $countStmt->execute($reminderMatchIds);
+        foreach ($countStmt->fetchAll() as $row) {
+            $predictionCounts[(int) $row['match_id']] = (int) $row['cnt'];
+        }
+    }
 
     view('admin/matches', [
-        'matches' => $stmt->fetchAll(),
+        'matches' => $matches,
         'teams' => db()->query('SELECT * FROM teams ORDER BY name')->fetchAll(),
         'stageFilters' => $stageFilters,
         'activeStage' => $activeStage,
+        'participantTotal' => active_participant_total_count(),
+        'predictionCounts' => $predictionCounts,
+        'missingByMatch' => admin_matches_missing_predictions_map($reminderMatchIds),
+        'mailConfigured' => mail_is_configured(),
     ]);
     return;
+}
+
+if ($method === 'POST' && $path === '/admin/matches/send-reminders') {
+    verify_csrf();
+    require_admin();
+
+    $matchId = (int) ($_POST['match_id'] ?? 0);
+    $resend = !empty($_POST['resend']);
+    $returnStage = (string) ($_POST['return_stage'] ?? 'all');
+    $stageFilters = [
+        'all' => 'Все',
+        'group' => 'Групповой этап',
+        'round32' => '1/16 финала',
+        'round16' => '1/8 финала',
+        'quarter' => 'Четвертьфинал',
+        'semi' => 'Полуфинал',
+        'third' => 'Матч за 3 место',
+        'final' => 'Финал',
+    ];
+    if (!array_key_exists($returnStage, $stageFilters)) {
+        $returnStage = 'all';
+    }
+    $redirectUrl = '/admin/matches' . ($returnStage === 'all' ? '' : '?stage=' . rawurlencode($returnStage)) . '#match-' . $matchId;
+
+    if (!mail_is_configured()) {
+        flash('error', 'Почта не настроена (config.php → mail.enabled и from_email).');
+        redirect($redirectUrl);
+    }
+
+    $result = run_admin_match_reminder_mailout($matchId, $resend);
+    if (!empty($result['error'])) {
+        $messages = [
+            'mail_not_configured' => 'Почта не настроена.',
+            'match_not_found' => 'Матч не найден.',
+            'teams_missing' => 'У матча не назначены обе команды.',
+            'prediction_locked' => 'Приём прогнозов на этот матч уже закрыт.',
+        ];
+        flash('error', $messages[$result['error']] ?? 'Не удалось отправить напоминания.');
+        redirect($redirectUrl);
+    }
+
+    if ((int) $result['recipients'] === 0) {
+        flash('success', 'Некому отправлять: все активные участники уже поставили прогноз' . ($resend ? '' : ' или получили письмо ранее') . '.');
+        redirect($redirectUrl);
+    }
+
+    if ((int) $result['failed'] > 0) {
+        flash(
+            'error',
+            'Отправлено ' . (int) $result['sent'] . ' из ' . (int) $result['recipients'] . '. Ошибок: ' . (int) $result['failed'] . '.'
+        );
+    } else {
+        flash(
+            'success',
+            ($resend ? 'Повторная рассылка' : 'Напоминания') . ' отправлены: ' . (int) $result['sent'] . ' писем.'
+        );
+    }
+
+    redirect($redirectUrl);
 }
 
 if ($method === 'POST' && $path === '/admin/matches/create') {
@@ -1019,13 +1177,19 @@ if ($method === 'POST' && $path === '/admin/results') {
         flash('success', 'Результат сброшен, начисленные за матч очки удалены из зачёта.');
     } else {
         try {
-            apply_match_result(
+            $notify = apply_match_result(
                 $matchId,
                 max(0, (int) ($_POST['home_score'] ?? 0)),
                 max(0, (int) ($_POST['away_score'] ?? 0)),
                 'manual'
             );
-            flash('success', 'Результат сохранён, очки пересчитаны.');
+            $msg = 'Результат сохранён, очки пересчитаны.';
+            if (($notify['sent'] ?? 0) > 0) {
+                $msg .= ' Отправлено писем с результатом: ' . (int) $notify['sent'] . '.';
+            } elseif (($notify['failed'] ?? 0) > 0) {
+                $msg .= ' Письма с результатом: ошибок ' . (int) $notify['failed'] . '.';
+            }
+            flash('success', $msg);
         } catch (RuntimeException $e) {
             flash('error', $e->getMessage());
         }
@@ -1071,12 +1235,26 @@ function normalize_import_datetime(string $value): ?string
 
 function find_or_create_team(string $name): array
 {
+    $handbookId = find_worldcup2026_team_id(null, $name);
+    if ($handbookId !== null) {
+        return ['id' => $handbookId, 'created' => 0];
+    }
+
     $stmt = db()->prepare('SELECT id FROM teams WHERE name = ? LIMIT 1');
     $stmt->execute([$name]);
     $id = $stmt->fetchColumn();
 
     if ($id) {
         return ['id' => (int) $id, 'created' => 0];
+    }
+
+    $code = worldcup2026_team_code(null, $name);
+    if ($code !== null) {
+        $canonical = WORLD_CUP_2026_TEAMS[$code]['name_ru'];
+        $stmt = db()->prepare('INSERT INTO teams (name, code, created_at, updated_at) VALUES (?, ?, NOW(), NOW())');
+        $stmt->execute([$canonical, $code]);
+
+        return ['id' => (int) db()->lastInsertId(), 'created' => 1];
     }
 
     $stmt = db()->prepare('INSERT INTO teams (name, code, created_at, updated_at) VALUES (?, NULL, NOW(), NOW())');

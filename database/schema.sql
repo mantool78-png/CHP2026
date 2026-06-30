@@ -93,6 +93,17 @@ CREATE TABLE prediction_reminder_log (
     CONSTRAINT prediction_reminder_match_fk FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE match_result_notification_log (
+    user_id INT UNSIGNED NOT NULL,
+    match_id INT UNSIGNED NOT NULL,
+    result_home TINYINT UNSIGNED NOT NULL,
+    result_away TINYINT UNSIGNED NOT NULL,
+    sent_at DATETIME NOT NULL,
+    PRIMARY KEY (user_id, match_id),
+    CONSTRAINT match_result_notification_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT match_result_notification_match_fk FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE api_football_sync_log (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     match_id INT UNSIGNED NULL,
@@ -168,6 +179,7 @@ INSERT INTO settings (setting_key, setting_value, updated_at) VALUES
 ('prediction_lock_minutes', '5', NOW()),
 ('champion_team_id', '', NOW());
 
+-- Демо-админ для локальной разработки. Пароль по умолчанию: password — смените перед продом или удалите строку.
 INSERT INTO users (name, email, password_hash, role, payment_status, created_at, updated_at) VALUES
 ('Администратор', 'admin@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llCkYm4y8oI5K3M', 'admin', 'active', NOW(), NOW());
 

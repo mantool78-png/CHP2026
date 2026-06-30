@@ -8,7 +8,7 @@
     </filter>
   </defs>
   <g clip-path="url(#wave-SWE)" filter="url(#sh-SWE)" transform="rotate(-1.5 36 24)">
-    <image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAADIAQMAAACjyqroAAAABlBMVEX+ywAAUpP1seVEAAAAP0lEQVRo3u3VoQ0AIBAEweuA/rukgweJeEsCyawev6mjmd2otoAgCIIgCIIgCD4GJUm6mQ2DIAiCIAiCIPgpXIqpy1zXbyk6AAAAAElFTkSuQmCC" x="0" y="0" width="72" height="48" preserveAspectRatio="xMidYMid slice"/>
+    <image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAASCAMAAAB2Mu6sAAABCFBMVEVHcEwFRHYAQnYBSn0AP3EDX5AAMF4AMF4BVIYALlwAMF8NO3YDRHbFmQABPG/TrwLTrwEBRnoCX48BToEANGMDVIRwg0BuhUYCWYkCWosALFoAQHJmbTVfZjUAUZL/zQAAVJQATIz/0AD+xgAAV5b+yQAARYMAYp8AQYEAR4cAZqEAPnwAT4/+wwAAOnUAWpkASor9ywAAX5x8k04AN2wARHkAXY8APnGDmUwAUIdBdnG6pyXRrAgALFqBjUfwuAAyY24UXYgjWXADYpgASXzpwQUAMGB9hkV3fT8mbIMSVoSQlj/YuxdDaWQhX3UAWIlshU7DlgAcQ1Z+iUecoT2LlUPAsCK/kQGXeBGwAAAAHnRSTlMAHcWyYa7Yyce7cgsv2a+duuRr6J1Ve8/Z16Hkt/4OkUsaAAABGklEQVQYGQXBwU7UQAAA0NfpUGRXWrYiKhATE/wAL578/5PhqInRGwKiCWzosCx0Znyv0azu21Wt27pbNzUBTVuanU/2uW1Gyz/8SM/U4UxoPk+QVzdWNVuXE64t01GEDGSG9HdWGERklkBiVvQI73JmiSwl81yKPqVtjjjt1o6vMFPok+Hhfayrw2/k34wvDnZuumZPrE9Tbb6kNRmMJhQWxjEig9GEggW66OOv3eHR4c/p6Phu9Z0Fhr3n2J1zqeTJ23OXPpT9+3Dx7/YkhjnOCjDYXrkUglZkVvSKabAlC7Q2QVH06TW2WzkLtIjrXnx4OkynGplAS9uJ9sLF1cvrfu3gDU/QGTdfmxByBZbNY7dIpWpe3W3qfxBfg1lHOXHLAAAAAElFTkSuQmCC" x="0" y="0" width="72" height="48" preserveAspectRatio="xMidYMid slice"/>
   </g>
   <path d="M1,6 C12,2 24,7 36,4 C48,1 60,6 71,4" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="0.6"/>
   <path d="M1,44 C12,47 24,42 36,45 C48,48 60,43 71,44" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="0.6"/>

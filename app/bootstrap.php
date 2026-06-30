@@ -23,6 +23,12 @@ if (PHP_VERSION_ID >= 70300) {
 }
 session_start();
 
+if (PHP_SAPI !== 'cli' && !headers_sent()) {
+    header('X-Frame-Options: SAMEORIGIN');
+    header('X-Content-Type-Options: nosniff');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+}
+
 function config(?string $key = null, $default = null)
 {
     global $config;
@@ -95,10 +101,68 @@ function redirect(string $to): void
     exit;
 }
 
+/** Режим отладки: подробные ошибки БД в браузере (на проде держите false). */
+function app_debug(): bool
+{
+    return (bool) config('app.debug', false);
+}
+
+/** Веб-скрипты apply_migration_*.php (после миграций на проде — false). */
+function web_migrations_enabled(): bool
+{
+    return (bool) config('app.web_migrations_enabled', true);
+}
+
+/** Токен для веб-миграций; пустой migration_web_token — legacy reminder_cron_token. */
+function migration_web_token(): string
+{
+    $token = trim((string) config('mail.migration_web_token', ''));
+    if ($token !== '') {
+        return $token;
+    }
+
+    return trim((string) config('mail.reminder_cron_token', ''));
+}
+
+/** Проверка GET ?token= для public/apply_migration_*.php */
+function verify_migration_web_request(): void
+{
+    if (!web_migrations_enabled()) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=UTF-8');
+        echo 'Not found';
+        exit;
+    }
+
+    $token = (string) ($_GET['token'] ?? '');
+    $expected = migration_web_token();
+    if ($expected === '' || !hash_equals($expected, $token)) {
+        http_response_code(403);
+        header('Content-Type: text/plain; charset=UTF-8');
+        echo 'Forbidden';
+        exit;
+    }
+}
+
+/** Сравнение секрета cron без утечки по времени. */
+function cron_token_valid(string $expected, string $provided): bool
+{
+    if ($expected === '') {
+        return false;
+    }
+
+    return hash_equals($expected, $provided);
+}
+
 /** Абсолютный URL текущего сайта (для ссылок в приглашениях, писем и т.п.). */
 function absolute_url(string $path): string
 {
     $path = ($path !== '' && $path[0] === '/') ? $path : '/' . $path;
+    $custom = trim((string) config('app.public_site_url', ''));
+    if ($custom !== '') {
+        return rtrim($custom, '/') . $path;
+    }
+
     $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
     $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || (isset($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443)
@@ -183,6 +247,12 @@ function require_user(): array
 {
     $user = current_user();
     if (!$user) {
+        redirect('/login');
+    }
+
+    if (($user['role'] ?? '') === 'participant' && ($user['payment_status'] ?? '') === 'blocked') {
+        unset($_SESSION['user_id']);
+        flash('error', 'Доступ к аккаунту заблокирован. Свяжитесь с организаторами конкурса.');
         redirect('/login');
     }
 
@@ -405,3 +475,7 @@ require __DIR__ . '/domain.php';
 require __DIR__ . '/api_football.php';
 require __DIR__ . '/mail.php';
 require __DIR__ . '/match_reminders.php';
+require __DIR__ . '/match_result_notifications.php';
+require __DIR__ . '/pdf_export.php';
+require __DIR__ . '/engagement.php';
+require __DIR__ . '/weekly_digest.php';

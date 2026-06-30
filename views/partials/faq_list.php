@@ -94,6 +94,19 @@
         </div>
     </details>
     <details class="faq-item">
+        <summary>Как проверить прогнозы и очки других участников?</summary>
+        <div class="faq-answer">
+            <p>
+                Все открытые прогнозы&nbsp;&mdash; в разделе
+                <a class="table-link" href="/predictions">«Открытые прогнозы»</a>:
+                список участников, матрица по матчам и прогнозы на чемпиона (после закрытия приёма).
+                На странице каждого матча после старта видны прогнозы и начисленные очки;
+                у каждого участника есть публичный профиль со всей историей.
+                Правила начисления&nbsp;&mdash; в <a class="table-link" href="/rules">правилах</a>.
+            </p>
+        </div>
+    </details>
+    <details class="faq-item">
         <summary>Кто организатор и куда идут взносы?</summary>
         <div class="faq-answer">
             <?php $transparencyMode = 'compact'; require __DIR__ . '/organizer_transparency.php'; ?>

@@ -8,7 +8,7 @@
     </filter>
   </defs>
   <g clip-path="url(#wave-FRA)" filter="url(#sh-FRA)" transform="rotate(-1.5 36 24)">
-    <image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAADVBAMAAADUYjTdAAAAD1BMVEX///8AJlTOESbeYG5Wb42QNrxKAAAAqklEQVR42u3OQQ0AIAwEsEumAAsowb8qPFz2bBU0p/FSmNuIoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKDgYvADlEQBQhZTEtMAAAAASUVORK5CYII=" x="0" y="0" width="72" height="48" preserveAspectRatio="xMidYMid slice"/>
+    <image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAASCAYAAABB7B6eAAACSklEQVQ4jY2Uz2oTURjFf9/NNAkRQWlMQatIlW67E+lK0IXQR3Aj+gQufRJXLuw7KIgobnXZZW2L/xeR1mJNTWZyv+Mid5ImTdvMzIWQgXO+3zn3jgHU7zy8nv/Tmolb7r5k7k2kMH++cfj+2ZNfwDd33wkhbErajDFuraysdDjhejG/fKXWL9Zc/cdZ5fajN91OvAtmWICQoQBIMFen1WpRFAV5ntPr9cjznBCCNjY22t7tff10/8EupkOhTDFeAN1Q0b0chPURWYx+j2oDLID7QNgdEFaZo9lsjk0niTzPLc/zhd6fg4U9GUrzBCpkQM2gb85O7JGhJCofGZTL/Ri+mVGr1ajVajQqGRctpDeOyttEocE/GZ6EsZHoKQaTl+RYIhveGiyHKQaTJmc6+CAilKIaNxpFBOMdlLGdPv5A0NLv0kjCpSkRTRrMEhFK840IyjZcJxnIwTVYZxkkAk0QaEigox0k4RSbZiBwRHpG4gzExwksERwxOLODRIAxXnDZDeUukoMsxTJxLk5XHyQ/haCkGI9ocvoZCXQCwfGSj+4gZjsH5S6aPAc+Ikiiw2/RyEAzEPiwgyNGUztwh1iAYlrC8wrtdptqtTr8/oQQhuJl7tM6yMd2Ue8APAr4CdoyfB8RlYfG9vb2PHBNUsvMrFqtUq/XqdfrVIo+ex6xRFBIdCX+4nTkctfbzPCPwp+DveT7ux/lZAC/gdXV1wCsr6+fW1xcvBljXO50OsuSluJh9+oX+pcQDUlRaNfRjsSHoqdXT9n//B8uy1/qtZFgGQAAAABJRU5ErkJggg==" x="0" y="0" width="72" height="48" preserveAspectRatio="xMidYMid slice"/>
   </g>
   <path d="M1,6 C12,2 24,7 36,4 C48,1 60,6 71,4" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="0.6"/>
   <path d="M1,44 C12,47 24,42 36,45 C48,48 60,43 71,44" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="0.6"/>

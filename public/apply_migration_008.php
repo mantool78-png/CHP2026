@@ -12,14 +12,7 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/app/bootstrap.php';
 require dirname(__DIR__) . '/app/migration_runner_008.php';
 
-$token = (string) ($_GET['token'] ?? '');
-$expected = (string) config('mail.reminder_cron_token', '');
-if ($expected === '' || !hash_equals($expected, $token)) {
-    http_response_code(403);
-    header('Content-Type: text/plain; charset=UTF-8');
-    echo 'Forbidden';
-    exit;
-}
+verify_migration_web_request();
 
 header('Content-Type: text/plain; charset=UTF-8');
 
@@ -37,6 +30,7 @@ try {
     if ($pdo instanceof PDO && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
+    error_log('Migration 008: ' . $e->getMessage());
     http_response_code(500);
-    echo 'Error: ' . $e->getMessage() . "\n";
+    echo app_debug() ? ('Error: ' . $e->getMessage() . "\n") : "Error\n";
 }

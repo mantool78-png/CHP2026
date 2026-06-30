@@ -84,15 +84,51 @@ WAVE_TEMPLATE = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 48" r
 </svg>
 """
 
+PNG_URLS = (
+    "https://flagcdn.com/w640/{iso2}.png",
+    "https://flagcdn.com/24x18/{iso2}.png",
+    "https://flagcdn.com/w320/{iso2}.png",
+)
+MIN_PNG_BYTES = 300
+API_SPORTS_FLAG_URL = "https://media.api-sports.io/flags/{iso2}.svg"
+
 
 def fetch_png(iso2: str) -> bytes:
-    url = f"https://flagcdn.com/w320/{iso2}.png"
+    best: bytes | None = None
+    last_err: Exception | None = None
+
+    for tpl in PNG_URLS:
+        url = tpl.format(iso2=iso2)
+        req = urllib.request.Request(url, headers={"User-Agent": "CHP2026-flag-builder/2.0"})
+        try:
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                data = resp.read()
+        except (urllib.error.URLError, TimeoutError) as exc:
+            last_err = exc
+            continue
+
+        if len(data) >= MIN_PNG_BYTES and (best is None or len(data) > len(best)):
+            best = data
+
+    if best is not None:
+        return best
+
+    if last_err is not None:
+        raise last_err
+
+    raise ValueError("PNG too small")
+
+
+def fetch_api_sports_svg(iso2: str) -> str:
+    url = API_SPORTS_FLAG_URL.format(iso2=iso2)
     req = urllib.request.Request(url, headers={"User-Agent": "CHP2026-flag-builder/2.0"})
     with urllib.request.urlopen(req, timeout=45) as resp:
-        data = resp.read()
-    if len(data) < 80:
-        raise ValueError("PNG too small")
-    return data
+        svg = resp.read().decode("utf-8", errors="replace").strip()
+
+    if len(svg) < 120 or "<svg" not in svg:
+        raise ValueError("SVG too small")
+
+    return svg
 
 
 def main() -> int:
@@ -100,16 +136,22 @@ def main() -> int:
     errors: list[str] = []
 
     for code, iso2 in TEAMS.items():
+        out_path = OUT / f"{code}.svg"
         try:
             png = fetch_png(iso2)
             b64 = base64.b64encode(png).decode("ascii")
-            out_path = OUT / f"{code}.svg"
             out_path.write_text(WAVE_TEMPLATE.format(code=code, b64=b64), encoding="utf-8")
             kb = out_path.stat().st_size // 1024
-            print(f"ok {code} ({iso2}) {kb}KB")
+            print(f"ok {code} ({iso2}) wave {kb}KB")
         except (urllib.error.URLError, TimeoutError, ValueError) as exc:
-            errors.append(f"{code}: {exc}")
-            print(f"fail {code}: {exc}", file=sys.stderr)
+            try:
+                svg = fetch_api_sports_svg(iso2)
+                out_path.write_text(svg, encoding="utf-8")
+                kb = out_path.stat().st_size // 1024
+                print(f"ok {code} ({iso2}) flat-svg {kb}KB (fallback)")
+            except (urllib.error.URLError, TimeoutError, ValueError) as fallback_exc:
+                errors.append(f"{code}: {exc}; fallback: {fallback_exc}")
+                print(f"fail {code}: {exc}; fallback: {fallback_exc}", file=sys.stderr)
 
     if errors:
         print(f"\n{len(errors)} error(s)", file=sys.stderr)

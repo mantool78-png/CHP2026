@@ -298,3 +298,270 @@ function mail_send_match_reminder(string $toEmail, string $participantName, arra
 
     return mail_send_message($toEmail, $subject, $plain, $html);
 }
+
+/** Ручное напоминание из админки — без привязки к «за час до матча». */
+function mail_send_match_prediction_nudge(string $toEmail, string $participantName, array $match): bool
+{
+    if (!mail_is_configured()) {
+        return false;
+    }
+
+    $site = mail_public_base_url();
+    $mid = (int) ($match['id'] ?? 0);
+    $url = $mid > 0 ? $site . '/match?id=' . $mid : $site . '/dashboard';
+    $home = (string) ($match['home_team'] ?? '');
+    $away = (string) ($match['away_team'] ?? '');
+    $when = '';
+    if (!empty($match['starts_at'])) {
+        $when = date('d.m.Y H:i', strtotime((string) $match['starts_at'])) . ' МСК';
+    }
+    $lockMin = (int) config('app.prediction_lock_minutes', 5);
+    $name = trim($participantName) !== '' ? trim($participantName) : 'Участник';
+    $appName = (string) config('app.name', 'ЧМ-2026');
+
+    $subject = 'Не забудьте прогноз — ' . $home . ' — ' . $away;
+    $plain = "Здравствуйте, {$name}!\n\n"
+        . "Матч {$home} — {$away}"
+        . ($when !== '' ? " начинается {$when}." : '.')
+        . "\n\nУ вас пока нет прогноза на эту игру. Приём прогнозов закроется за {$lockMin} минут до стартового свистка.\n\n"
+        . "Сделать прогноз: {$url}\n\n"
+        . "С уважением,\n{$appName}";
+
+    $safeName = h($name);
+    $html = '<p>Здравствуйте, <strong>' . $safeName . '</strong>!</p>'
+        . '<p>Матч <strong>' . h($home) . ' — ' . h($away) . '</strong>'
+        . ($when !== '' ? ' начинается <strong>' . h($when) . '</strong>.' : '.')
+        . '</p>'
+        . '<p>У вас пока нет прогноза на эту игру. Приём прогнозов закроется за '
+        . $lockMin . ' минут до стартового свистка.</p>'
+        . '<p><a href="' . h($url) . '">Сделать прогноз</a></p>';
+
+    return mail_send_message($toEmail, $subject, $plain, $html);
+}
+
+/** Разовое напоминание о матче открытия (или другом матче) — текст «вариант A». */
+function mail_send_opening_match_reminder(string $toEmail, string $participantName, array $match): bool
+{
+    if (!mail_is_configured()) {
+        return false;
+    }
+
+    $site = mail_public_base_url();
+    $mid = (int) ($match['id'] ?? 0);
+    $url = $mid > 0 ? $site . '/match?id=' . $mid : $site . '/dashboard';
+    $home = (string) ($match['home_team'] ?? '');
+    $away = (string) ($match['away_team'] ?? '');
+    $lockMin = (int) config('app.prediction_lock_minutes', 5);
+    $name = trim($participantName) !== '' ? trim($participantName) : 'Участник';
+    $appName = (string) config('app.name', 'ЧМ-2026');
+
+    $subject = 'Сегодня открытие ЧМ-2026 — не забудьте прогноз на ' . $home . ' — ' . $away;
+    $plain = "Здравствуйте, {$name}!\n\n"
+        . "Сегодня в 22:00 МСК стартует Чемпионат мира — матч открытия {$home} — {$away}.\n\n"
+        . "У вас пока нет прогноза на эту игру. Приём прогнозов закроется за {$lockMin} минут до стартового свистка.\n\n"
+        . "Сделать прогноз: {$url}\n\n"
+        . "Удачи в конкурсе!\n\n"
+        . "С уважением,\n{$appName}";
+
+    $safeName = h($name);
+    $html = '<p>Здравствуйте, <strong>' . $safeName . '</strong>!</p>'
+        . '<p>Сегодня в <strong>22:00 МСК</strong> стартует Чемпионат мира — матч открытия '
+        . '<strong>' . h($home) . ' — ' . h($away) . '</strong>.</p>'
+        . '<p>У вас пока нет прогноза на эту игру. Приём прогнозов закроется за '
+        . $lockMin . ' минут до стартового свистка.</p>'
+        . '<p><a href="' . h($url) . '">Сделать прогноз</a></p>'
+        . '<p>Удачи в конкурсе!</p>';
+
+    return mail_send_message($toEmail, $subject, $plain, $html);
+}
+
+/** Результат матча и начисленные очки — участнику, который ставил прогноз. */
+function mail_send_match_result(
+    string $toEmail,
+    string $participantName,
+    array $match,
+    array $predictionResult
+): bool {
+    if (!mail_is_configured()) {
+        return false;
+    }
+
+    $site = mail_public_base_url();
+    $mid = (int) ($match['id'] ?? 0);
+    $matchUrl = $mid > 0 ? $site . '/match?id=' . $mid : $site . '/my-scores';
+    $ratingUrl = $site . '/rating';
+    $home = (string) ($match['home_team'] ?? '');
+    $away = (string) ($match['away_team'] ?? '');
+    $resultHome = (int) ($match['home_score'] ?? 0);
+    $resultAway = (int) ($match['away_score'] ?? 0);
+    $predHome = (int) ($predictionResult['pred_home'] ?? 0);
+    $predAway = (int) ($predictionResult['pred_away'] ?? 0);
+    $points = (int) ($predictionResult['points'] ?? 0);
+    $reason = trim((string) ($predictionResult['reason'] ?? ''));
+    if ($reason === '') {
+        $reason = $points === 3 ? 'Точный счет' : ($points === 1 ? 'Угадан исход' : 'Нет очков');
+    }
+    $name = trim($participantName) !== '' ? trim($participantName) : 'Участник';
+    $appName = (string) config('app.name', 'ЧМ-2026');
+
+    $subject = 'Результат матча: ' . $home . ' — ' . $away . ' ' . $resultHome . ':' . $resultAway;
+    $pointsLine = $points > 0
+        ? "Вам начислено {$points} " . ru_points_suffix($points) . " ({$reason})."
+        : "За этот матч начислено 0 очков ({$reason}).";
+
+    $plain = "Здравствуйте, {$name}!\n\n"
+        . "Матч {$home} — {$away} завершён со счётом {$resultHome}:{$resultAway} (основное время).\n\n"
+        . "Ваш прогноз: {$predHome}:{$predAway}\n"
+        . "{$pointsLine}\n\n"
+        . "Карточка матча: {$matchUrl}\n"
+        . "Общий рейтинг: {$ratingUrl}\n\n"
+        . "С уважением,\n{$appName}";
+
+    $safeName = h($name);
+    $html = '<p>Здравствуйте, <strong>' . $safeName . '</strong>!</p>'
+        . '<p>Матч <strong>' . h($home) . ' — ' . h($away) . '</strong> завершён со счётом '
+        . '<strong>' . $resultHome . ':' . $resultAway . '</strong> (основное время).</p>'
+        . '<p>Ваш прогноз: <strong>' . $predHome . ':' . $predAway . '</strong><br>'
+        . h($pointsLine) . '</p>'
+        . '<p><a href="' . h($matchUrl) . '">Карточка матча</a> · '
+        . '<a href="' . h($ratingUrl) . '">Общий рейтинг</a></p>';
+
+    return mail_send_message($toEmail, $subject, $plain, $html);
+}
+
+/** Напоминание об оплате взноса (участники без подтверждённой оплаты и без чека). */
+function mail_send_payment_reminder(string $toEmail, string $participantName, int $predictionsCount = 0): bool
+{
+    if (!mail_is_configured()) {
+        return false;
+    }
+
+    $site = mail_public_base_url();
+    $name = trim($participantName) !== '' ? trim($participantName) : 'Участник';
+    $days = contest_days_until_kickoff();
+    $daysPart = $days > 0
+        ? 'До старта ЧМ-2026 осталось ' . $days . ' ' . ru_days_suffix($days) . '.'
+        : 'Чемпионат мира уже на пороге.';
+    $freeLimit = free_prediction_limit();
+    $freeLeft = max(0, $freeLimit - max(0, $predictionsCount));
+    $fee = number_format(entry_fee_rub(), 0, ',', ' ');
+    $pairFee = number_format(referral_pair_entry_fee_rub(), 0, ',', ' ');
+    $prize = (string) config('app.prize_main_title', 'Apple iPhone 17e 256 GB');
+    $dashboardUrl = $site . '/dashboard';
+    $rulesUrl = $site . '/rules';
+
+    $trialLine = $predictionsCount > 0
+        ? 'Вы уже оставили ' . $predictionsCount . ' из ' . $freeLimit . ' бесплатных прогнозов'
+            . ($freeLeft > 0 ? ' — осталось ' . $freeLeft . '.' : ' — лимит пробного режима скоро закончится.')
+        : 'У вас ещё ' . $freeLimit . ' бесплатных прогнозов, чтобы попробовать конкурс до оплаты.';
+
+    $subject = $days > 0
+        ? "До старта ЧМ-2026 — {$days} " . ru_days_suffix($days) . '. Успейте войти в конкурс'
+        : 'Старт ЧМ-2026: оплатите взнос и продолжайте игру';
+
+    $plain = "Здравствуйте, {$name}!\n\n"
+        . "{$daysPart}\n\n"
+        . "Вы зарегистрированы в лиге прогнозов, но взнос пока не подтверждён. {$trialLine}\n\n"
+        . "Чтобы играть весь турнир без ограничений, бороться за {$prize} и денежные призы:\n"
+        . "1) Переведите {$fee} ₽ (реквизиты в личном кабинете)\n"
+        . "2) Укажите email или имя в комментарии к переводу\n"
+        . "3) При желании приложите чек в кабинете — так быстрее подтвердим оплату\n\n"
+        . "С другом дешевле: один перевод {$pairFee} ₽ на двоих (акция «Приведи друга»). Подробности: {$rulesUrl}\n\n"
+        . "Личный кабинет: {$dashboardUrl}\n\n"
+        . 'С уважением, ' . (string) config('app.name', 'ЧМ-2026');
+
+    $safeName = h($name);
+    $html = '<p>Здравствуйте, <strong>' . $safeName . '</strong>!</p>'
+        . '<p><strong>' . h($daysPart) . '</strong></p>'
+        . '<p>Вы зарегистрированы в лиге прогнозов, но взнос пока не подтверждён. '
+        . h($trialLine) . '</p>'
+        . '<p>Чтобы играть весь турнир без ограничений и бороться за <strong>' . h($prize) . '</strong> и денежные призы:</p>'
+        . '<ol>'
+        . '<li>Переведите <strong>' . h($fee) . ' ₽</strong> (реквизиты в личном кабинете)</li>'
+        . '<li>Укажите email или имя в комментарии к переводу</li>'
+        . '<li>При желании приложите чек в кабинете — так быстрее подтвердим оплату</li>'
+        . '</ol>'
+        . '<p>С другом дешевле: один перевод <strong>' . h($pairFee) . ' ₽</strong> на двоих '
+        . '(акция «Приведи друга»). <a href="' . h($rulesUrl) . '">Условия акции</a></p>'
+        . '<p><a href="' . h($dashboardUrl) . '"><strong>Перейти в личный кабинет</strong></a></p>';
+
+    return mail_send_message($toEmail, $subject, $plain, $html);
+}
+
+/** Последний матч с бесплатным прогнозом: напоминание об оплате взноса. */
+function mail_send_last_free_match_payment_notice(
+    string $toEmail,
+    string $participantName,
+    array $match,
+    int $predictionsCount = 0
+): bool {
+    if (!mail_is_configured()) {
+        return false;
+    }
+
+    $site = mail_public_base_url();
+    $name = trim($participantName) !== '' ? trim($participantName) : 'Участник';
+    $home = (string) ($match['home_team'] ?? 'Катар');
+    $away = (string) ($match['away_team'] ?? 'Швейцария');
+    $label = $home . ' — ' . $away;
+    $startsAt = (string) ($match['starts_at'] ?? '');
+    $kickoffLabel = $startsAt !== ''
+        ? date('d.m.Y H:i', strtotime($startsAt)) . ' МСК'
+        : 'сегодня';
+    $lockMinutes = (int) config('app.prediction_lock_minutes', 5);
+    $deadlineLabel = $startsAt !== ''
+        ? date('d.m.Y H:i', strtotime($startsAt) - $lockMinutes * 60) . ' МСК'
+        : '';
+
+    $freeLimit = free_prediction_limit();
+    $fee = number_format(entry_fee_rub(), 0, ',', ' ');
+    $pairFee = number_format(referral_pair_entry_fee_rub(), 0, ',', ' ');
+    $prize = (string) config('app.prize_main_title', 'Apple iPhone 17e 256 GB');
+    $dashboardUrl = $site . '/dashboard';
+    $rulesUrl = $site . '/rules';
+    $matchUrl = isset($match['id']) ? $site . match_url((int) $match['id'], 'mail') : $dashboardUrl;
+
+    $usedLine = $predictionsCount > 0
+        ? 'Вы уже использовали ' . min($predictionsCount, $freeLimit) . ' из ' . $freeLimit . ' бесплатных прогнозов.'
+        : 'У вас ещё есть бесплатные прогнозы, но после этого матча пробный режим закончится.';
+
+    $subject = 'Сегодня последний бесплатный прогноз — оплатите взнос, чтобы продолжить игру';
+
+    $plain = "Здравствуйте, {$name}!\n\n"
+        . "Сегодня последний матч, на который можно сделать бесплатный прогноз: {$label}.\n"
+        . "Старт: {$kickoffLabel}."
+        . ($deadlineLabel !== '' ? " Прогнозы принимаются до {$deadlineLabel}." : '') . "\n\n"
+        . "{$usedLine}\n"
+        . "Чтобы продолжить игру после этого матча, необходимо оплатить стартовый взнос {$fee} ₽.\n\n"
+        . "1) Переведите {$fee} ₽ (реквизиты в личном кабинете)\n"
+        . "2) Укажите email или имя в комментарии к переводу\n"
+        . "3) При желании приложите чек в кабинете — так быстрее подтвердим оплату\n\n"
+        . "С другом дешевле: один перевод {$pairFee} ₽ на двоих (акция «Приведи друга»). Подробности: {$rulesUrl}\n\n"
+        . "Сделать прогноз: {$matchUrl}\n"
+        . "Оплата и реквизиты: {$dashboardUrl}\n\n"
+        . 'С уважением, ' . (string) config('app.name', 'ЧМ-2026');
+
+    $safeName = h($name);
+    $html = '<p>Здравствуйте, <strong>' . $safeName . '</strong>!</p>'
+        . '<p><strong>Сегодня последний матч с бесплатным прогнозом:</strong> '
+        . h($label) . '.</p>'
+        . '<p>Старт: <strong>' . h($kickoffLabel) . '</strong>.'
+        . ($deadlineLabel !== '' ? ' Прогнозы принимаются до <strong>' . h($deadlineLabel) . '</strong>.' : '')
+        . '</p>'
+        . '<p>' . h($usedLine) . '</p>'
+        . '<p>Чтобы продолжить игру после этого матча, необходимо оплатить стартовый взнос '
+        . '<strong>' . h($fee) . ' ₽</strong> и дождаться подтверждения организатором.</p>'
+        . '<p>После оплаты вы сможете прогнозировать весь турнир без ограничений и бороться за '
+        . '<strong>' . h($prize) . '</strong> и денежные призы.</p>'
+        . '<ol>'
+        . '<li>Переведите <strong>' . h($fee) . ' ₽</strong> (реквизиты в личном кабинете)</li>'
+        . '<li>Укажите email или имя в комментарии к переводу</li>'
+        . '<li>При желании приложите чек в кабинете — так быстрее подтвердим оплату</li>'
+        . '</ol>'
+        . '<p>С другом дешевле: один перевод <strong>' . h($pairFee) . ' ₽</strong> на двоих '
+        . '(акция «Приведи друга»). <a href="' . h($rulesUrl) . '">Условия акции</a></p>'
+        . '<p><a href="' . h($matchUrl) . '"><strong>Сделать прогноз на матч</strong></a><br>'
+        . '<a href="' . h($dashboardUrl) . '"><strong>Перейти к оплате в кабинете</strong></a></p>';
+
+    return mail_send_message($toEmail, $subject, $plain, $html);
+}

@@ -99,8 +99,43 @@
     <?php endif; ?>
 </section>
 
+<?php if (isset($paymentReceiptsTableReady) && $paymentReceiptsTableReady === false): ?>
+    <section class="card">
+        <h2>Нужна миграция 005</h2>
+        <p class="muted">На сервере нет таблицы <code>payment_receipts</code> (загрузка чеков и фильтр рассылки). Один раз откройте ссылку ниже под админом, дождитесь <strong>OK</strong>, затем обновите страницу.</p>
+        <?php if (web_migrations_enabled() && migration_web_token() !== ''): ?>
+            <p><a class="button" href="<?= h(absolute_url('/public/apply_migration_005.php?token=' . rawurlencode(migration_web_token()))) ?>" target="_blank" rel="noopener">Применить миграцию 005</a></p>
+        <?php else: ?>
+            <p class="muted">В phpMyAdmin выполните файл <code>database/migrations/005_payment_receipts.sql</code>.</p>
+        <?php endif; ?>
+    </section>
+<?php endif; ?>
+
 <section class="card">
     <h2>Зарегистрированы, взнос не подтверждён (<?= count($pendingParticipantsTable) ?>)</h2>
+    <?php
+    $pendingReminderRecipients = $pendingReminderRecipients ?? [];
+    $pendingReminderCount = count($pendingReminderRecipients);
+    $daysUntilKickoff = (int) ($daysUntilKickoff ?? contest_days_until_kickoff());
+    ?>
+    <?php if ($pendingReminderCount > 0): ?>
+        <p class="muted small-print">
+            Напоминание на email: <strong><?= $pendingReminderCount ?></strong>
+            <?= h(ru_participant_count_label($pendingReminderCount)) ?>
+            без оплаты и без загруженного чека.
+            <?php if ($daysUntilKickoff > 0): ?>
+                До старта ЧМ&nbsp;&mdash; <?= $daysUntilKickoff ?> <?= h(ru_days_suffix($daysUntilKickoff)) ?>.
+            <?php endif; ?>
+        </p>
+        <?php if (!empty($mailConfigured)): ?>
+            <form method="post" action="/admin/send-payment-reminders" class="actions" onsubmit="return confirm('Отправить напоминание об оплате на <?= (int) $pendingReminderCount ?> адресов?');">
+                <?= csrf_field() ?>
+                <button class="button secondary" type="submit">Разослать напоминание об оплате</button>
+            </form>
+        <?php else: ?>
+            <p class="muted small-print">Почта не настроена — включите <code>mail.enabled</code> в config.php.</p>
+        <?php endif; ?>
+    <?php endif; ?>
     <?php if (!$pendingParticipantsTable): ?>
         <p class="muted">Нет участников в ожидании оплаты (остальные активны или заблокированы).</p>
     <?php else: ?>

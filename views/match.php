@@ -18,8 +18,14 @@ $awayForm = trim((string) ($match['away_form_last5'] ?? ''));
 
 $hasTeamInsights = $homeRank !== null || $awayRank !== null || $homeNote !== '' || $awayNote !== '' || $homeForm !== '' || $awayForm !== '';
 
+$tournamentProgress = $tournamentProgress ?? ['home' => ['played' => 0], 'away' => ['played' => 0]];
+$showTournamentProgress = ((int) ($tournamentProgress['home']['played'] ?? 0) > 0)
+    || ((int) ($tournamentProgress['away']['played'] ?? 0) > 0);
+
 $distTotal = (int) ($predictionStats['total'] ?? 0);
 $showDistribution = $distTotal > 0;
+$matchHasResult = $match['home_score'] !== null && $match['away_score'] !== null;
+$matchIsLive = match_started($match);
 
 if ($showDistribution) {
     $total = max(1, $distTotal);
@@ -41,30 +47,6 @@ if ($showDistribution) {
     }
 }
 
-// Helper to render form badges
-if (!function_exists('match_page_render_form_badges')) {
-    function match_page_render_form_badges(string $formString): string {
-        if ($formString === '') {
-            return '<span class="form-badge form-badge--empty">Нет данных</span>';
-        }
-        $html = '<div class="form-badges-row">';
-        $chars = preg_split('//u', $formString, -1, PREG_SPLIT_NO_EMPTY);
-        foreach ($chars as $char) {
-            $char = mb_strtoupper($char, 'UTF-8');
-            if ($char === 'В' || $char === 'W') {
-                $html .= '<span class="form-badge form-badge--win" title="Победа">W</span>';
-            } elseif ($char === 'Н' || $char === 'D') {
-                $html .= '<span class="form-badge form-badge--draw" title="Ничья">D</span>';
-            } elseif ($char === 'П' || $char === 'L') {
-                $html .= '<span class="form-badge form-badge--loss" title="Поражение">L</span>';
-            } else {
-                $html .= '<span class="form-badge form-badge--unknown">' . h($char) . '</span>';
-            }
-        }
-        $html .= '</div>';
-        return $html;
-    }
-}
 ?>
 
 <div class="match-page-container">
@@ -78,7 +60,7 @@ if (!function_exists('match_page_render_form_badges')) {
             <span class="match-dashboard-stage"><?= h($match['stage']) ?></span>
             <span class="match-dashboard-time">
                 <?php if (($match['status'] ?? '') === 'live'): ?>
-                    <span class="pill live-pill">LIVE</span>
+                    <span class="pill live-pill"><?= h(match_live_pill_label()) ?></span>
                 <?php endif; ?>
                 <?= h(date('d.m.Y H:i', strtotime($match['starts_at']))) ?> МСК
             </span>
@@ -103,9 +85,9 @@ if (!function_exists('match_page_render_form_badges')) {
                         <span class="score-num"><?= (int) $match['away_score'] ?></span>
                     </div>
                 <?php elseif (($match['status'] ?? '') === 'live'): ?>
-                    <div class="match-vs-badge live-pill-text">LIVE</div>
+                    <div class="match-vs-badge live-pill-text"><?= h(match_live_pill_label()) ?></div>
                 <?php else: ?>
-                    <div class="match-vs-badge">VS</div>
+                    <div class="match-vs-badge" aria-label="против">—</div>
                 <?php endif; ?>
             </div>
 
@@ -122,9 +104,8 @@ if (!function_exists('match_page_render_form_badges')) {
         <!-- Раздел статистики -->
         <div class="match-stats-section">
             
-            <!-- FIFA RATING -->
             <div class="match-section-divider">
-                <span>FIFA RATING</span>
+                <span>Рейтинг ФИФА</span>
             </div>
             <div class="match-stats-row">
                 <div class="match-stat-value">
@@ -135,24 +116,48 @@ if (!function_exists('match_page_render_form_badges')) {
                 </div>
             </div>
 
-            <!-- TEAM FORM -->
+            <?php if ($showTournamentProgress): ?>
+                <div class="match-tournament-panel">
+                    <div class="match-tournament-panel-head">
+                        <span class="match-tournament-panel-badge">На турнире</span>
+                        <p class="match-tournament-panel-hint">
+                            Завершённые матчи этих сборных на ЧМ-2026 до текущей встречи
+                        </p>
+                    </div>
+                    <div class="match-tournament-panel-columns">
+                        <div class="match-tournament-team-col">
+                            <h3 class="match-tournament-team-name"><?= h($homeTeam) ?></h3>
+                            <?= render_match_tournament_progress_html($tournamentProgress['home']) ?>
+                        </div>
+                        <div class="match-tournament-team-col">
+                            <h3 class="match-tournament-team-name"><?= h($awayTeam) ?></h3>
+                            <?= render_match_tournament_progress_html($tournamentProgress['away']) ?>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <div class="match-section-divider">
-                <span>TEAM FORM</span>
+                <span>Форма сборных</span>
             </div>
             <div class="match-stats-row">
                 <div class="match-stat-value">
-                    <?= match_page_render_form_badges($homeForm) ?>
+                    <?= match_form_badges_html($homeForm) ?>
                 </div>
                 <div class="match-stat-value">
-                    <?= match_page_render_form_badges($awayForm) ?>
+                    <?= match_form_badges_html($awayForm) ?>
                 </div>
             </div>
 
-            <!-- PREDICTION DISTRIBUTION -->
             <?php if ($showDistribution): ?>
                 <div class="match-section-divider">
-                    <span>PREDICTION DISTRIBUTION</span>
+                    <span><?= $matchIsLive ? 'Распределение прогнозов' : 'Как ставят участники' ?></span>
                 </div>
+                <?php if (!$matchIsLive): ?>
+                    <p class="muted small-print match-participant-hint-note">
+                        Анонимная сводка до старта матча. Список прогнозов по именам откроется после свистка.
+                    </p>
+                <?php endif; ?>
                 <div class="prediction-distribution-container">
                     <!-- Сегментированный прогресс-бар -->
                     <div class="prediction-bar-wrapper">
@@ -181,10 +186,18 @@ if (!function_exists('match_page_render_form_badges')) {
                     </div>
 
                     <?php if (!empty($predictionStats['top_score'])): ?>
+                        <?php
+                            $topScoreRaw = (string) $predictionStats['top_score'];
+                            $topScoreDisplay = preg_match('/^\d+:\d+$/', $topScoreRaw) === 1
+                                ? preg_replace('/^(\d+):(\d+)$/', '$1 : $2', $topScoreRaw)
+                                : $topScoreRaw;
+                        ?>
                         <div class="match-dashboard-top-score">
-                            <span>Самый популярный счёт:</span>
-                            <strong class="top-score-badge"><?= h((string) $predictionStats['top_score']) ?></strong>
-                            <small class="muted">(<?= (int) ($predictionStats['top_score_count'] ?? 0) ?> <?= ru_times_suffix((int) ($predictionStats['top_score_count'] ?? 0)) ?>)</small>
+                            <span class="match-top-score-label">Самый популярный счёт:</span>
+                            <span class="match-top-score-result">
+                                <strong class="top-score-badge"><?= h($topScoreDisplay) ?></strong>
+                                <small class="muted">(<?= (int) ($predictionStats['top_score_count'] ?? 0) ?> <?= ru_times_suffix((int) ($predictionStats['top_score_count'] ?? 0)) ?>)</small>
+                            </span>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -233,28 +246,94 @@ if (!function_exists('match_page_render_form_badges')) {
         </div>
     <?php endif; ?>
 
+    <?php
+    $h2h = $h2h ?? ['matches' => [], 'summary' => ['home_wins' => 0, 'away_wins' => 0, 'draws' => 0, 'total' => 0], 'cached_at' => null, 'error' => null];
+    $h2hEnabled = !empty($h2hEnabled);
+    $h2hMatches = $h2h['matches'] ?? [];
+    $h2hSummary = $h2h['summary'] ?? [];
+    ?>
+    <?php if ($h2hEnabled): ?>
+        <section class="card match-h2h-card">
+            <h2>Очные встречи</h2>
+            <p class="muted small-print">
+                Прошлые матчи между <?= h($homeTeam) ?> и <?= h($awayTeam) ?>. На зачёт прогнозов не влияет.
+            </p>
+            <?php if ($h2hMatches !== []): ?>
+                <?php if ((int) ($h2hSummary['total'] ?? 0) > 0): ?>
+                    <div class="match-h2h-summary">
+                        <span class="h2h-stat"><strong><?= (int) ($h2hSummary['home_wins'] ?? 0) ?></strong> побед <?= h($homeTeam) ?></span>
+                        <span class="h2h-stat"><strong><?= (int) ($h2hSummary['draws'] ?? 0) ?></strong> ничьих</span>
+                        <span class="h2h-stat"><strong><?= (int) ($h2hSummary['away_wins'] ?? 0) ?></strong> побед <?= h($awayTeam) ?></span>
+                    </div>
+                <?php endif; ?>
+                <ul class="match-h2h-list">
+                    <?php foreach ($h2hMatches as $h2hRow): ?>
+                        <li>
+                            <span class="match-h2h-date muted"><?= h((string) $h2hRow['date']) ?></span>
+                            <span class="match-h2h-teams">
+                                <?php
+                                $h2hHome = team_name_by_api_team_id((int) ($h2hRow['home_api_id'] ?? 0)) ?? (string) $h2hRow['home'];
+                                $h2hAway = team_name_by_api_team_id((int) ($h2hRow['away_api_id'] ?? 0)) ?? (string) $h2hRow['away'];
+                                ?>
+                                <?= h($h2hHome) ?>
+                                <span class="match-h2h-score"><?= h((string) $h2hRow['score']) ?></span>
+                                <?= h($h2hAway) ?>
+                            </span>
+                            <?php if (!empty($h2hRow['competition'])): ?>
+                                <span class="muted small-print"><?= h(match_reference_competition_ru((string) $h2hRow['competition'])) ?></span>
+                            <?php endif; ?>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php elseif (!empty($h2h['error'])): ?>
+                <p class="muted">Не удалось загрузить историю очных встреч. Попробуйте позже.</p>
+            <?php else: ?>
+                <p class="muted">Ранее эти сборные не встречались на крупных турнирах или данных об очных матчах нет.</p>
+            <?php endif; ?>
+        </section>
+    <?php endif; ?>
+
     <!-- Прогнозы участников -->
     <div class="card match-predictions-card">
-        <h2>Прогнозы участников</h2>
+        <div class="match-predictions-head">
+            <h2>Прогнозы участников</h2>
+            <?php if (match_started($match) && $predictions): ?>
+                <a class="button small secondary" href="/match/pdf?id=<?= (int) $match['id'] ?>">Скачать PDF</a>
+            <?php endif; ?>
+        </div>
         <?php if (!match_started($match)): ?>
             <p class="muted">Список участников и их счётов откроется после начала матча.</p>
             <p class="muted small-print">Приём прогнозов закроется за <?= (int) config('app.prediction_lock_minutes') ?> минут до стартового свистка.</p>
         <?php elseif (!$predictions): ?>
             <p class="muted">На этот матч пока нет прогнозов.</p>
         <?php else: ?>
+            <p class="muted small-print">
+                Полная матрица всех прогнозов&nbsp;&mdash; в разделе
+                <a class="table-link" href="/predictions">«Открытые прогнозы»</a>.
+            </p>
             <div class="table-scroll">
                 <table class="predictions-table">
                     <thead>
                         <tr>
                             <th>Участник</th>
                             <th>Прогноз</th>
+                            <?php if ($matchHasResult): ?>
+                                <th>Очки</th>
+                                <th>Статус</th>
+                            <?php endif; ?>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($predictions as $prediction): ?>
                             <tr>
-                                <td><?= h($prediction['name']) ?></td>
+                                <td>
+                                    <a class="table-link" href="<?= h(participant_url((int) $prediction['user_id'], 'match')) ?>"><?= h($prediction['name']) ?></a>
+                                </td>
                                 <td class="prediction-score-cell"><?= (int) $prediction['home_score'] ?> : <?= (int) $prediction['away_score'] ?></td>
+                                <?php if ($matchHasResult): ?>
+                                    <td><strong><?= (int) $prediction['points'] ?></strong></td>
+                                    <td><?= h((string) ($prediction['reason'] ?: 'Нет очков')) ?></td>
+                                <?php endif; ?>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>

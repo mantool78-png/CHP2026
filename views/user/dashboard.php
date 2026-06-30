@@ -30,7 +30,7 @@
             <div>
                 <span>1</span>
                 <strong>Попробуйте конкурс</strong>
-                <p>Оставьте прогнозы на любые открытые матчи. Уже сыгранные и закрытые матчи прогнозировать нельзя.</p>
+                <p>Оставьте прогнозы на первые <?= (int) $freePredictionLimit ?> матчей турнира по расписанию. Уже сыгранные и закрытые матчи прогнозировать нельзя.</p>
             </div>
             <div>
                 <span>2</span>
@@ -137,6 +137,11 @@
     </section>
 <?php endif; ?>
 
+<?php
+$compareUserId = (int) $user['id'];
+require __DIR__ . '/../partials/participant_engagement_stats.php';
+?>
+
 <section class="card">
     <div class="participant-summary-head">
         <h2>Достижения</h2>
@@ -185,6 +190,11 @@
         <h2>Прогнозы на матчи</h2>
         <a class="button small secondary" href="/my-scores">История очков</a>
     </div>
+    <p class="muted small-print dashboard-predictions-note">
+        Редактировать можно только матчи с открытым приёмом.
+        Закрытые матчи за сегодня или за выбранную дату показаны для справки — если прогноз не сохранён, он уже не принимается.
+        Очки за сыгранные матчи — в «Истории очков».
+    </p>
     <div class="filter-tabs">
         <?php foreach ($stageFilters as $filterKey => $filterLabel): ?>
             <?php
@@ -235,45 +245,72 @@
                     $locked = prediction_locked($match);
                     $canSubmitPrediction = !$locked && can_make_prediction($user, (int) $match['id']);
                 ?>
-                <form id="match-<?= (int) $match['id'] ?>" class="prediction-row" method="post" action="/predictions">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="match_id" value="<?= (int) $match['id'] ?>">
-                    <input type="hidden" name="return_stage" value="<?= h($activeStage) ?>">
-                    <input type="hidden" name="return_date" value="<?= h($activeDate) ?>">
-                    <div>
-                        <a class="match-title" href="<?= h(match_url((int) $match['id'], 'dashboard')) ?>">
-                            <?php render_match_teams_with_flags($match['home_code'] ?? null, (string) $match['home_team'], $match['away_code'] ?? null, (string) $match['away_team']); ?>
-                        </a>
-                        <p class="muted">
-                            <?= h($match['stage']) ?> · <?= h(date('d.m.Y H:i', strtotime($match['starts_at']))) ?>
-                            <?php if ($locked): ?> · прием закрыт<?php endif; ?>
-                        </p>
-                        <div class="prediction-meta">
+                <?php if ($locked): ?>
+                    <div id="match-<?= (int) $match['id'] ?>" class="prediction-row prediction-row--closed">
+                        <div>
+                            <a class="match-title" href="<?= h(match_url((int) $match['id'], 'dashboard')) ?>">
+                                <?php render_match_teams_with_flags($match['home_code'] ?? null, (string) $match['home_team'], $match['away_code'] ?? null, (string) $match['away_team']); ?>
+                            </a>
+                            <p class="muted">
+                                <?= h($match['stage']) ?> · <?= h(date('d.m.Y H:i', strtotime($match['starts_at']))) ?> · приём закрыт
+                            </p>
+                            <div class="prediction-meta">
+                                <?php if ($prediction): ?>
+                                    <span class="pill success">Ваш прогноз: <?= (int) $prediction['home_score'] ?>:<?= (int) $prediction['away_score'] ?></span>
+                                <?php else: ?>
+                                    <span class="pill warn">Пропущен — прогноз не был сохранён до дедлайна</span>
+                                <?php endif; ?>
+                                <?php render_match_status_pills($match); ?>
+                                <?php if ($score): ?>
+                                    <span class="pill accent">Очки: <?= (int) $score['points'] ?> · <?= h($score['reason']) ?></span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <div class="prediction-row-closed-aside">
                             <?php if ($prediction): ?>
-                                <span class="pill success">Ваш прогноз: <?= (int) $prediction['home_score'] ?>:<?= (int) $prediction['away_score'] ?></span>
-                            <?php else: ?>
-                                <span class="pill">Прогноз еще не сохранен</span>
+                                <span class="prediction-closed-score"><?= (int) $prediction['home_score'] ?> : <?= (int) $prediction['away_score'] ?></span>
                             <?php endif; ?>
-                            <?php if (!$locked && !is_active_participant($user) && !$prediction): ?>
-                                <span class="pill accent">
-                                    <?= (int) $freePredictionsRemaining > 0 ? 'Можно бесплатно' : 'Нужна оплата' ?>
-                                </span>
-                            <?php endif; ?>
-                            <?php if ($match['home_score'] !== null && $match['away_score'] !== null): ?>
-                                <span class="pill">Результат: <?= (int) $match['home_score'] ?>:<?= (int) $match['away_score'] ?></span>
-                            <?php endif; ?>
-                            <?php if ($score): ?>
-                                <span class="pill accent">Очки: <?= (int) $score['points'] ?> · <?= h($score['reason']) ?></span>
-                            <?php endif; ?>
+                            <span class="muted small-print">Редактирование недоступно</span>
                         </div>
                     </div>
-                    <div class="score-inputs">
-                        <input type="number" name="home_score" min="0" value="<?= h($prediction['home_score'] ?? '') ?>" <?= !$canSubmitPrediction ? 'disabled' : '' ?>>
-                        <span>:</span>
-                        <input type="number" name="away_score" min="0" value="<?= h($prediction['away_score'] ?? '') ?>" <?= !$canSubmitPrediction ? 'disabled' : '' ?>>
-                    </div>
-                    <button class="button small" type="submit" <?= !$canSubmitPrediction ? 'disabled' : '' ?>>Сохранить</button>
-                </form>
+                <?php else: ?>
+                    <form id="match-<?= (int) $match['id'] ?>" class="prediction-row" method="post" action="/predictions">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="match_id" value="<?= (int) $match['id'] ?>">
+                        <input type="hidden" name="return_stage" value="<?= h($activeStage) ?>">
+                        <input type="hidden" name="return_date" value="<?= h($activeDate) ?>">
+                        <div>
+                            <a class="match-title" href="<?= h(match_url((int) $match['id'], 'dashboard')) ?>">
+                                <?php render_match_teams_with_flags($match['home_code'] ?? null, (string) $match['home_team'], $match['away_code'] ?? null, (string) $match['away_team']); ?>
+                            </a>
+                            <p class="muted">
+                                <?= h($match['stage']) ?> · <?= h(date('d.m.Y H:i', strtotime($match['starts_at']))) ?>
+                            </p>
+                            <div class="prediction-meta">
+                                <?php if ($prediction): ?>
+                                    <span class="pill success">Ваш прогноз: <?= (int) $prediction['home_score'] ?>:<?= (int) $prediction['away_score'] ?></span>
+                                <?php else: ?>
+                                    <span class="pill">Прогноз ещё не сохранён</span>
+                                <?php endif; ?>
+                                <?php if (!is_active_participant($user) && !$prediction): ?>
+                                    <span class="pill accent">
+                                        <?= (int) $freePredictionsRemaining > 0 ? 'Можно бесплатно' : 'Нужна оплата' ?>
+                                    </span>
+                                <?php endif; ?>
+                                <?php render_match_status_pills($match); ?>
+                                <?php if ($score): ?>
+                                    <span class="pill accent">Очки: <?= (int) $score['points'] ?> · <?= h($score['reason']) ?></span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <div class="score-inputs">
+                            <input type="number" name="home_score" min="0" value="<?= h($prediction['home_score'] ?? '') ?>" <?= !$canSubmitPrediction ? 'disabled' : '' ?>>
+                            <span>:</span>
+                            <input type="number" name="away_score" min="0" value="<?= h($prediction['away_score'] ?? '') ?>" <?= !$canSubmitPrediction ? 'disabled' : '' ?>>
+                        </div>
+                        <button class="button small" type="submit" <?= !$canSubmitPrediction ? 'disabled' : '' ?>>Сохранить</button>
+                    </form>
+                <?php endif; ?>
             <?php endforeach; ?>
         </div>
     <?php endif; ?>

@@ -2,12 +2,32 @@
 $homeUser = current_user();
 $showHeroRegisterBtn = !$homeUser
     || (($homeUser['role'] ?? '') === 'participant' && ($homeUser['payment_status'] ?? '') === 'pending_payment');
+$paymentBannerMessage = ($homeUser
+    && ($homeUser['role'] ?? '') === 'participant'
+    && ($homeUser['payment_status'] ?? '') === 'pending_payment')
+    ? contest_payment_banner_message()
+    : null;
 ?>
+<?php if ($paymentBannerMessage !== null): ?>
+    <section class="home-payment-banner<?= ($paymentBannerMessage['phase'] ?? '') === 'after' ? ' home-payment-banner--live' : '' ?>" role="status">
+        <div class="home-payment-banner-inner">
+            <p class="home-payment-banner-title">
+                <?php if (($paymentBannerMessage['phase'] ?? '') === 'before'): ?>
+                    До старта ЧМ&nbsp;&mdash; <strong><?= (int) $paymentBannerMessage['days'] ?> <?= h(ru_days_suffix((int) $paymentBannerMessage['days'])) ?></strong>
+                <?php else: ?>
+                    <strong><?= h((string) $paymentBannerMessage['title']) ?></strong>
+                <?php endif; ?>
+            </p>
+            <p class="home-payment-banner-text muted"><?= h((string) $paymentBannerMessage['subtitle']) ?></p>
+        </div>
+        <a class="button small" href="/dashboard">Перейти к оплате</a>
+    </section>
+<?php endif; ?>
 <section class="hero-duel">
     <!-- Main content block (left column) -->
     <div class="hero-duel-content">
         <h1 class="hero-title-plain hero-site-name">Лига прогнозов на&nbsp;матчи ЧМ-2026</h1>
-        <p class="eyebrow accent-strong hero-eyebrow">ЧМ-2026 уже скоро — успей войти в игру до первого матча</p>
+        <p class="eyebrow accent-strong hero-eyebrow">ЧМ-2026 уже начался — регистрация открыта на весь турнир</p>
         <p class="hero-tagline">Прогнозируй матчи и выиграй iPhone&nbsp;17e</p>
         <p class="lead hero-lead-main">
             Сделай первые <?= (int) config('app.free_prediction_limit', 5) ?> прогнозов бесплатно, набирай очки и борись за
@@ -45,13 +65,103 @@ $showHeroRegisterBtn = !$homeUser
     </div>
 </section>
 
+<?php require __DIR__ . '/partials/home_activity.php'; ?>
+
+<?php if ($nextMatch): ?>
+    <section class="card countdown-card">
+        <div>
+            <p class="eyebrow">До ближайшего матча чемпионата мира осталось</p>
+            <h2><?php render_match_teams_with_flags($nextMatch['home_code'] ?? null, (string) $nextMatch['home_team'], $nextMatch['away_code'] ?? null, (string) $nextMatch['away_team']); ?></h2>
+            <p class="muted">
+                <?= h($nextMatch['stage']) ?> · <?= h(date('d.m.Y H:i', strtotime($nextMatch['starts_at']))) ?> МСК
+            </p>
+        </div>
+        <div
+            class="countdown"
+            data-countdown-target="<?= h(date('c', strtotime($nextMatch['starts_at']))) ?>"
+        >
+            <span data-days>0</span><small>дней</small>
+            <span data-hours>00</span><small>часов</small>
+            <span data-minutes>00</span><small>минут</small>
+            <span data-seconds>00</span><small>секунд</small>
+        </div>
+    </section>
+<?php endif; ?>
+
+<?php require __DIR__ . '/partials/home_schedule.php'; ?>
+
 <?php
-$mascotSet = 'trio';
-$mascotSize = 'lg';
-$mascotCaption = '';
-$mascotExtraClass = 'mascot-strip--home';
-require __DIR__ . '/partials/mascots.php';
+$showResults = user_has_voted_champion_poll() || isset($_GET['show_results']);
+$pollResults = champion_poll_results();
 ?>
+<section id="champion-poll" class="card champion-poll-card">
+    <div class="champion-poll-header">
+        <h2 class="champion-poll-title">Кто выиграет ЧМ-2026?</h2>
+        <span class="champion-poll-votes-count"><?= number_format($pollResults['total'], 0, ',', ' ') ?> <?= ru_vote_count_label($pollResults['total']) ?></span>
+    </div>
+
+    <?php if ($showResults): ?>
+        <!-- RESULTS VIEW -->
+        <div class="champion-poll-results">
+            <?php foreach ($pollResults['options'] as $res): ?>
+                <?php
+                $flagPath = $res['code'] ? worldcup2026_flag_path($res['code']) : null;
+                ?>
+                <div class="champion-poll-result-row">
+                    <div class="champion-poll-progress-bar" style="width: <?= $res['percent'] ?>%;"></div>
+                    <div class="champion-poll-row-content">
+                        <span class="champion-poll-team-name"><?= h($res['name']) ?></span>
+                        <div class="champion-poll-right">
+                            <span class="champion-poll-percent"><?= $res['percent'] ?>%</span>
+                            <?php if ($flagPath): ?>
+                                <img class="poll-flag" src="<?= h($flagPath) ?>" alt="<?= h($res['name']) ?>" loading="lazy">
+                            <?php else: ?>
+                                <span class="poll-flag poll-flag--generic">🌍</span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+            <div class="champion-poll-footer">
+                <p class="muted small-print">Спасибо за ваше участие! Голосование анонимное.</p>
+                <p class="muted small-print" style="margin-top: 0.5rem; line-height: 1.4;">
+                    * Данное голосование является общим опросом гостей сайта и не влияет на ваш выбор Чемпиона мира в Лиге прогнозов 2026 (который делается в личном кабинете участника).
+                </p>
+            </div>
+        </div>
+    <?php else: ?>
+        <!-- VOTING VIEW -->
+        <form method="post" action="/champion-poll/vote" class="champion-poll-form">
+            <?= csrf_field() ?>
+            <div class="champion-poll-options-grid">
+                <?php foreach ($pollResults['options'] as $res): ?>
+                    <?php
+                    $flagPath = $res['code'] ? worldcup2026_flag_path($res['code']) : null;
+                    ?>
+                    <button type="submit" name="option_key" value="<?= h($res['key']) ?>" class="champion-poll-option-btn">
+                        <span class="champion-poll-team-name">
+                            <?php if ($flagPath): ?>
+                                <img class="poll-flag poll-flag--btn" src="<?= h($flagPath) ?>" alt="<?= h($res['name']) ?>" loading="lazy">
+                            <?php else: ?>
+                                <span class="poll-flag poll-flag--generic poll-flag--btn">🌍</span>
+                            <?php endif; ?>
+                            <?= h($res['name']) ?>
+                        </span>
+                        <span class="champion-poll-vote-arrow">→</span>
+                    </button>
+                <?php endforeach; ?>
+            </div>
+            <div class="champion-poll-footer">
+                <a class="table-link small-print" href="/?show_results=1#champion-poll">Посмотреть результаты без голосования</a>
+                <p class="muted small-print" style="margin-top: 0.75rem; line-height: 1.4;">
+                    * Данное голосование является общим опросом гостей сайта и не влияет на ваш выбор Чемпиона мира в Лиге прогнозов 2026 (который делается в личном кабинете участника).
+                </p>
+            </div>
+        </form>
+    <?php endif; ?>
+</section>
+
+<?php require __DIR__ . '/partials/site_polls.php'; ?>
 
 <section class="main-prize-showcase">
     <div class="main-prize-showcase-text">
@@ -89,11 +199,8 @@ $referralSavings = max(0, entry_fee_rub() * 2 - referral_pair_entry_fee_rub());
     <p class="eyebrow accent-strong">Уже в игре</p>
     <h2><?= (int) $registrationStats['total_participants'] ?> <?= ru_participant_count_label((int) $registrationStats['total_participants']) ?> зарегистрировались</h2>
     <p class="lead social-proof-lead">
-        <?php if (!empty($nextMatch)): ?>
-            Регистрация открыта до первого матча&nbsp;&mdash; <?= h(date('d.m.Y H:i', strtotime($nextMatch['starts_at']))) ?> МСК.
-        <?php else: ?>
-            Регистрация открыта до первого матча чемпионата мира 2026.
-        <?php endif; ?>
+        Регистрация открыта на протяжении всего чемпионата&nbsp;&mdash; можно присоединиться до, во время и после старта турнира.
+        Прогнозы принимаются только на матчи, которые ещё не начались.
         Собери друзей и устройте свою мини-битву прогнозов.
     </p>
     <?php if (!empty($registrationStats['recent_participants'])): ?>
@@ -129,42 +236,43 @@ $referralSavings = max(0, entry_fee_rub() * 2 - referral_pair_entry_fee_rub());
 <section id="how-it-works" class="card how-it-works">
     <p class="eyebrow">Старт простой</p>
     <h2>Как это работает</h2>
-    <ol class="how-steps">
-        <li>
-            <span class="how-step-num">1</span>
-            <div>
-                <strong>Прогнозируй счёт</strong>
+    <p class="muted how-it-works-lead">Четыре шага от регистрации до борьбы за призы.</p>
+    <div class="how-steps">
+        <article class="how-step">
+            <span class="how-step-num" aria-hidden="true">1</span>
+            <div class="how-step-body">
+                <h3 class="how-step-title">Прогнозируй счёт</h3>
                 <p class="muted">Перед каждым матчем выбираешь исход или точный счёт.</p>
             </div>
-        </li>
-        <li>
-            <span class="how-step-num">2</span>
-            <div>
-                <strong>Лови очки за точность</strong>
+        </article>
+        <article class="how-step">
+            <span class="how-step-num" aria-hidden="true">2</span>
+            <div class="how-step-body">
+                <h3 class="how-step-title">Лови очки за точность</h3>
                 <p class="muted">Точный счёт&nbsp;&mdash; 3 очка, угаданный исход&nbsp;&mdash; 1 очко.</p>
             </div>
-        </li>
-        <li>
-            <span class="how-step-num">3</span>
-            <div>
-                <strong>Обгоняй друзей</strong>
+        </article>
+        <article class="how-step">
+            <span class="how-step-num" aria-hidden="true">3</span>
+            <div class="how-step-body">
+                <h3 class="how-step-title">Обгоняй друзей</h3>
                 <p class="muted">Поднимайся в рейтинге и в мини-лигах на протяжении всего чемпионата.</p>
             </div>
-        </li>
-        <li>
-            <span class="how-step-num">4</span>
-            <div>
-                <strong>Забирай призы</strong>
+        </article>
+        <article class="how-step">
+            <span class="how-step-num" aria-hidden="true">4</span>
+            <div class="how-step-body">
+                <h3 class="how-step-title">Забирай призы</h3>
                 <p class="muted">Лидер рейтинга получает <?= h(config('app.prize_main_title', 'Apple iPhone 17e 256 GB')) ?>; дальше&nbsp;&mdash; фиксированные денежные призы.</p>
             </div>
-        </li>
-    </ol>
+        </article>
+    </div>
     <div class="scoring-example">
-        <p class="scoring-example-title"><strong>Пример:</strong> матч закончился 2:1</p>
-        <ul>
-            <li>Ты поставил <strong>2:1</strong>&nbsp;&mdash; получаешь <strong>3 очка</strong> (точный счёт)</li>
-            <li>Ты поставил <strong>1:0</strong>&nbsp;&mdash; угадал исход, получаешь <strong>1 очко</strong></li>
-            <li>Ты поставил <strong>1:1</strong>&nbsp;&mdash; очков нет</li>
+        <p class="scoring-example-title">Пример: матч закончился <strong>2:1</strong></p>
+        <ul class="scoring-example-list">
+            <li><span class="scoring-example-outcome scoring-example-outcome--exact">3 очка</span> Прогноз <strong>2:1</strong>&nbsp;&mdash; точный счёт</li>
+            <li><span class="scoring-example-outcome scoring-example-outcome--win">1 очко</span> Прогноз <strong>1:0</strong>&nbsp;&mdash; угадан исход</li>
+            <li><span class="scoring-example-outcome scoring-example-outcome--miss">0</span> Прогноз <strong>1:1</strong>&nbsp;&mdash; очков нет</li>
         </ul>
     </div>
 </section>
@@ -181,32 +289,11 @@ $referralSavings = max(0, entry_fee_rub() * 2 - referral_pair_entry_fee_rub());
 
 <section class="card final-cta-home">
     <h2>Готов проверить, кто лучше разбирается в футболе?</h2>
-    <p class="lead final-cta-lead">Подключайся и начни с первого матча.</p>
+    <p class="lead final-cta-lead">Подключайся в любой момент&nbsp;&mdash; и ставь прогнозы на ближайшие матчи.</p>
     <div class="actions">
         <a class="button" href="<?= $homeUser ? '/dashboard' : '/register' ?>">Войти в чемпионат</a>
     </div>
 </section>
-
-<?php if ($nextMatch): ?>
-    <section class="card countdown-card">
-        <div>
-            <p class="eyebrow">До ближайшего матча чемпионата мира осталось</p>
-            <h2><?php render_match_teams_with_flags($nextMatch['home_code'] ?? null, (string) $nextMatch['home_team'], $nextMatch['away_code'] ?? null, (string) $nextMatch['away_team']); ?></h2>
-            <p class="muted">
-                <?= h($nextMatch['stage']) ?> · <?= h(date('d.m.Y H:i', strtotime($nextMatch['starts_at']))) ?> МСК
-            </p>
-        </div>
-        <div
-            class="countdown"
-            data-countdown-target="<?= h(date('c', strtotime($nextMatch['starts_at']))) ?>"
-        >
-            <span data-days>0</span><small>дней</small>
-            <span data-hours>00</span><small>часов</small>
-            <span data-minutes>00</span><small>минут</small>
-            <span data-seconds>00</span><small>секунд</small>
-        </div>
-    </section>
-<?php endif; ?>
 
 <?php
 $homePredictUser = $homeUser
@@ -269,11 +356,7 @@ $homePredictUser = $homeUser
                                         <?= (int) $homeFreeRem > 0 ? 'Можно бесплатно' : 'Нужна оплата' ?>
                                     </span>
                                 <?php endif; ?>
-                                <?php if (($match['status'] ?? '') === 'live'): ?>
-                                    <span class="pill live-pill">LIVE</span>
-                                <?php elseif ($match['home_score'] !== null && $match['away_score'] !== null): ?>
-                                    <span class="pill">Результат: <?= (int) $match['home_score'] ?>:<?= (int) $match['away_score'] ?></span>
-                                <?php endif; ?>
+                                <?php render_match_status_pills($match); ?>
                                 <?php if ($score): ?>
                                     <span class="pill accent">Очки: <?= (int) $score['points'] ?> · <?= h($score['reason']) ?></span>
                                 <?php endif; ?>
@@ -363,7 +446,7 @@ document.querySelectorAll('[data-countdown-target]').forEach(function (timer) {
         }
     ?>
     <?php if (!$leaders): ?>
-        <p class="muted">Пока нет подтверждённых участников с оплатой. Рейтинг заполнится после первых матчей.</p>
+        <p class="muted">Пока нет зарегистрированных участников. Рейтинг заполнится после первых прогнозов и матчей.</p>
     <?php elseif (!$hasLeaderboardPoints): ?>
         <p class="muted">Участники уже в игре, но очки появятся после первых матчей. Следите за <a class="table-link" href="/rating">рейтингом</a>.</p>
         <table>

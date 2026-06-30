@@ -142,7 +142,11 @@
                                     <time class="muted" datetime="<?= h(date('c', strtotime((string) $m['starts_at']))) ?>">
                                         <?= h(date('d.m.Y H:i', strtotime((string) $m['starts_at']))) ?> МСК
                                     </time>
-                                    <span class="tournament-playoff-score"><?= h($scoreStr) ?></span>
+                                    <?php if (($m['status'] ?? '') === 'live'): ?>
+                                        <span class="pill live-pill">LIVE</span>
+                                    <?php else: ?>
+                                        <span class="tournament-playoff-score"><?= h($scoreStr) ?></span>
+                                    <?php endif; ?>
                                     <?php if ($hasTeams): ?>
                                         <a class="button small secondary" href="<?= h(match_url((int) $m['id'], 'tournament')) ?>">Матч</a>
                                     <?php endif; ?>
@@ -155,3 +159,8 @@
         </div>
     <?php endif; ?>
 <?php endif; ?>
+
+<?php
+$apiFootballWidgetContext = 'tournament';
+require __DIR__ . '/partials/api_football_widgets.php';
+?>

@@ -903,6 +903,9 @@ function api_football_live_statuses(): array
 }
 
 /**
+ * Счёт для зачёта в конкурсе: только основное время (90+).
+ * В API-Football goals при AET/PEN — итог с овертаймом; нужен score.fulltime.
+ *
  * @param array<string,mixed> $fixture
  * @return array{home:int,away:int,status:string}|null
  */
@@ -913,18 +916,28 @@ function api_football_fixture_fulltime_score(array $fixture): ?array
         return null;
     }
 
-    $goals = $fixture['goals'] ?? [];
-    $score = $fixture['score'] ?? [];
     $home = null;
     $away = null;
-
-    if (is_array($goals)) {
-        $home = $goals['home'] ?? null;
-        $away = $goals['away'] ?? null;
+    $score = $fixture['score'] ?? [];
+    if (is_array($score) && isset($score['fulltime']) && is_array($score['fulltime'])) {
+        $ft = $score['fulltime'];
+        if (is_numeric($ft['home'] ?? null) && is_numeric($ft['away'] ?? null)) {
+            $home = (int) $ft['home'];
+            $away = (int) $ft['away'];
+        }
     }
-    if (($home === null || $away === null) && is_array($score) && isset($score['fulltime']) && is_array($score['fulltime'])) {
-        $home = $score['fulltime']['home'] ?? $home;
-        $away = $score['fulltime']['away'] ?? $away;
+
+    // goals совпадает с fulltime только при обычном FT; при AET/PEN там счёт после овертайма.
+    if (($home === null || $away === null) && $statusShort === 'FT') {
+        $goals = $fixture['goals'] ?? [];
+        if (is_array($goals)) {
+            if (is_numeric($goals['home'] ?? null)) {
+                $home = (int) $goals['home'];
+            }
+            if (is_numeric($goals['away'] ?? null)) {
+                $away = (int) $goals['away'];
+            }
+        }
     }
 
     if (!is_numeric($home) || !is_numeric($away)) {
@@ -938,25 +951,55 @@ function api_football_fixture_fulltime_score(array $fixture): ?array
     ];
 }
 
+/**
+ * Текущий счёт для отображения live: в овертайме/пенальти — только основное время, если API его уже отдал.
+ *
+ * @return array{home:int,away:int}|null
+ */
+function api_football_fixture_contest_score(array $fixture): ?array
+{
+    $statusShort = strtoupper((string) ($fixture['fixture']['status']['short'] ?? ''));
+
+    if (in_array($statusShort, api_football_finished_statuses(), true)) {
+        $ft = api_football_fixture_fulltime_score($fixture);
+
+        return $ft !== null ? ['home' => $ft['home'], 'away' => $ft['away']] : null;
+    }
+
+    if (in_array($statusShort, ['ET', 'BT', 'P'], true)) {
+        $score = $fixture['score'] ?? [];
+        if (is_array($score) && isset($score['fulltime']) && is_array($score['fulltime'])) {
+            $ft = $score['fulltime'];
+            if (is_numeric($ft['home'] ?? null) && is_numeric($ft['away'] ?? null)) {
+                return ['home' => max(0, (int) $ft['home']), 'away' => max(0, (int) $ft['away'])];
+            }
+        }
+    }
+
+    $goals = $fixture['goals'] ?? [];
+    if (!is_array($goals) || !is_numeric($goals['home'] ?? null) || !is_numeric($goals['away'] ?? null)) {
+        return null;
+    }
+
+    return ['home' => max(0, (int) $goals['home']), 'away' => max(0, (int) $goals['away'])];
+}
+
 function api_football_set_match_live(int $matchId, array $fixture): void
 {
-    $goals = $fixture['goals'] ?? [];
-    $home = $goals['home'] ?? null;
-    $away = $goals['away'] ?? null;
-
-    if ($home !== null && $away !== null) {
+    $contestScore = api_football_fixture_contest_score($fixture);
+    if ($contestScore === null) {
         db()->prepare(
-            "UPDATE matches SET status = 'live', home_score = ?, away_score = ?, api_synced_at = NOW(), updated_at = NOW()
+            "UPDATE matches SET status = 'live', api_synced_at = NOW(), updated_at = NOW()
              WHERE id = ? AND status IN ('scheduled', 'live')"
-        )->execute([max(0, (int) $home), max(0, (int) $away), $matchId]);
+        )->execute([$matchId]);
 
         return;
     }
 
     db()->prepare(
-        "UPDATE matches SET status = 'live', api_synced_at = NOW(), updated_at = NOW()
+        "UPDATE matches SET status = 'live', home_score = ?, away_score = ?, api_synced_at = NOW(), updated_at = NOW()
          WHERE id = ? AND status IN ('scheduled', 'live')"
-    )->execute([$matchId]);
+    )->execute([$contestScore['home'], $contestScore['away'], $matchId]);
 }
 
 /** Обновить starts_at из API, если FIFA сдвинула время (порог 2 мин). */
@@ -1013,7 +1056,7 @@ function api_football_admin_dashboard_stats(): array
 }
 
 /**
- * @return array{checked:int,finished:int,live:int,schedule_updated:int,teams_updated:int,errors:int,messages:list<string>}
+ * @return array{checked:int,finished:int,live:int,schedule_updated:int,teams_updated:int,corrected:int,errors:int,messages:list<string>}
  */
 function run_api_football_sync(): array
 {
@@ -1023,6 +1066,7 @@ function run_api_football_sync(): array
         'live' => 0,
         'schedule_updated' => 0,
         'teams_updated' => 0,
+        'corrected' => 0,
         'errors' => 0,
         'messages' => [],
     ];
@@ -1043,7 +1087,7 @@ function run_api_football_sync(): array
     api_football_map_fixtures();
 
     $stmt = db()->query(
-        "SELECT id, api_fixture_id, result_source, home_score, status
+        "SELECT id, api_fixture_id, result_source, home_score, away_score, status
          FROM matches
          WHERE api_fixture_id IS NOT NULL
            AND result_source = 'api'
@@ -1051,6 +1095,11 @@ function run_api_football_sync(): array
                 status = 'live'
                 OR (home_score IS NULL AND status = 'finished')
                 OR (status = 'scheduled' AND starts_at <= DATE_ADD(NOW(), INTERVAL 7 DAY))
+                OR (
+                    status = 'finished'
+                    AND home_score IS NOT NULL
+                    AND starts_at >= DATE_SUB(NOW(), INTERVAL 60 DAY)
+                )
            )
          ORDER BY starts_at ASC"
     );
@@ -1090,10 +1139,14 @@ function run_api_football_sync(): array
         if (in_array($statusShort, api_football_live_statuses(), true)) {
             api_football_set_match_live($matchId, $fixture);
             $result['live']++;
+            $displayScore = api_football_fixture_contest_score($fixture);
+            $scoreLabel = $displayScore !== null
+                ? $displayScore['home'] . ':' . $displayScore['away']
+                : (($fixture['goals']['home'] ?? '?') . ':' . ($fixture['goals']['away'] ?? '?'));
             api_football_log(
                 $matchId,
                 'sync_live',
-                (string) (($fixture['goals']['home'] ?? '?') . ':' . ($fixture['goals']['away'] ?? '?') . ' (' . $statusShort . ')')
+                $scoreLabel . ' (' . $statusShort . ')'
             );
             continue;
         }
@@ -1103,11 +1156,28 @@ function run_api_football_sync(): array
             continue;
         }
 
+        $currentHome = $row['home_score'] !== null ? (int) $row['home_score'] : null;
+        $currentAway = $row['away_score'] !== null ? (int) $row['away_score'] : null;
+        $alreadyFinished = $currentHome !== null && $currentAway !== null && ($row['status'] ?? '') === 'finished';
+
+        if ($alreadyFinished && $currentHome === $score['home'] && $currentAway === $score['away']) {
+            continue;
+        }
+
         try {
             apply_match_result($matchId, $score['home'], $score['away'], 'api');
             db()->prepare('UPDATE matches SET api_synced_at = NOW() WHERE id = ?')->execute([$matchId]);
-            $result['finished']++;
-            api_football_log($matchId, 'sync_ft', $score['home'] . ':' . $score['away'] . ' (' . $statusShort . ')');
+            if ($alreadyFinished) {
+                $result['corrected']++;
+                api_football_log(
+                    $matchId,
+                    'sync_ft_correct',
+                    $currentHome . ':' . $currentAway . ' → ' . $score['home'] . ':' . $score['away'] . ' (' . $statusShort . ')'
+                );
+            } else {
+                $result['finished']++;
+                api_football_log($matchId, 'sync_ft', $score['home'] . ':' . $score['away'] . ' (' . $statusShort . ')');
+            }
         } catch (Throwable $e) {
             $result['errors']++;
             api_football_log($matchId, 'sync_error', $e->getMessage());
@@ -1536,18 +1606,20 @@ function api_football_h2h_row_from_fixture(array $item): ?array
 
     $homeGoals = null;
     $awayGoals = null;
-    $goals = $item['goals'] ?? [];
-    if (is_array($goals) && is_numeric($goals['home'] ?? null) && is_numeric($goals['away'] ?? null)) {
-        $homeGoals = (int) $goals['home'];
-        $awayGoals = (int) $goals['away'];
-    }
-
     $scoreBlock = $item['score'] ?? [];
     if (is_array($scoreBlock) && isset($scoreBlock['fulltime']) && is_array($scoreBlock['fulltime'])) {
         $ft = $scoreBlock['fulltime'];
         if (is_numeric($ft['home'] ?? null) && is_numeric($ft['away'] ?? null)) {
             $homeGoals = (int) $ft['home'];
             $awayGoals = (int) $ft['away'];
+        }
+    }
+
+    if ($homeGoals === null || $awayGoals === null) {
+        $goals = $item['goals'] ?? [];
+        if (is_array($goals) && is_numeric($goals['home'] ?? null) && is_numeric($goals['away'] ?? null)) {
+            $homeGoals = (int) $goals['home'];
+            $awayGoals = (int) $goals['away'];
         }
     }
 

@@ -18,5 +18,6 @@ echo 'checked=' . (int) $r['checked'] . "\n";
 echo 'finished=' . (int) $r['finished'] . "\n";
 echo 'live=' . (int) $r['live'] . "\n";
 echo 'teams_updated=' . (int) ($r['teams_updated'] ?? 0) . "\n";
+echo 'corrected=' . (int) ($r['corrected'] ?? 0) . "\n";
 echo 'schedule_updated=' . (int) $r['schedule_updated'] . "\n";
 echo 'errors=' . (int) $r['errors'] . "\n";

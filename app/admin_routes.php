@@ -897,6 +897,7 @@ if ($method === 'POST' && $path === '/admin/api-football/sync-now') {
         . ', завершено ' . $r['finished']
         . ', live ' . $r['live']
         . ', участники обновлены ' . ($r['teams_updated'] ?? 0)
+        . ', исправлено ' . ($r['corrected'] ?? 0)
         . ', время обновлено ' . $r['schedule_updated']
         . ', ошибок ' . $r['errors'] . '.'
     );

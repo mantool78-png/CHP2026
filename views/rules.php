@@ -220,6 +220,6 @@
         Личный Telegram организатора:
         <a class="table-link" href="<?= h(contest_organizer_telegram_url()) ?>" target="_blank" rel="noopener"><?= h(contest_organizer_telegram_handle()) ?></a>.
     </p>
-    <p>Telegram-канал конкурса: <a class="table-link" href="<?= h(contest_telegram_channel_url()) ?>"><?= h(contest_telegram_channel_url()) ?></a></p>
-    <p>Канал в MAX «<?= h(contest_max_channel_name()) ?>»: <a class="table-link" href="<?= h(contest_max_channel_url()) ?>"><?= h(contest_max_channel_url()) ?></a></p>
+    <p>Telegram-канал конкурса: <a class="table-link" href="<?= h(contest_telegram_channel_url()) ?>" target="_blank" rel="noopener">@chpwc2026</a></p>
+    <p>Канал в MAX «<?= h(contest_max_channel_name()) ?>»: <a class="table-link" href="<?= h(contest_max_channel_url()) ?>" target="_blank" rel="noopener">вступить в канал</a></p>
 </section>

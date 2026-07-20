@@ -50,7 +50,7 @@ $pageJsonLdBase = [
     <link rel="icon" href="/assets/favicon-32x32.png" type="image/png" sizes="32x32">
     <link rel="icon" href="/assets/favicon-16x16.png" type="image/png" sizes="16x16">
     <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
-    <link rel="stylesheet" href="/assets/styles.css?v=20260611-top-score-layout">
+    <link rel="stylesheet" href="/assets/styles.css?v=20260720-finale-hero">
     <script type="application/ld+json"><?= json_encode($pageJsonLdBase, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
 </head>
 <body>
@@ -58,7 +58,18 @@ $pageJsonLdBase = [
         <a class="brand" href="/" title="<?= h(config('app.name')) ?>">
             <img class="brand-logo" src="/assets/logo.png" alt="<?= h(config('app.name')) ?>" decoding="async">
         </a>
-        <nav>
+        <button
+            type="button"
+            class="nav-toggle"
+            id="nav-toggle"
+            aria-controls="site-nav"
+            aria-expanded="false"
+            aria-label="Открыть меню"
+        >
+            <span class="nav-toggle-bars" aria-hidden="true"></span>
+        </button>
+        <div class="nav-backdrop" id="nav-backdrop" hidden></div>
+        <nav class="site-nav" id="site-nav" aria-label="Основное меню">
             <a href="/rules">Правила</a>
             <a href="/matches">Матчи</a>
             <a href="/tournament">Турнир</a>
@@ -75,13 +86,13 @@ $pageJsonLdBase = [
                     href="<?= ($user['role'] ?? '') === 'admin' ? '/admin' : '/dashboard' ?>"
                     class="<?= ($user['role'] ?? '') !== 'admin' ? 'nav-cabinet-accent' : '' ?>"
                 >Кабинет</a>
-                <form action="/logout" method="post" class="inline-form">
+                <form action="/logout" method="post" class="inline-form nav-logout-form">
                     <?= csrf_field() ?>
                     <button type="submit" class="link-button">Выйти</button>
                 </form>
             <?php else: ?>
                 <a href="/login">Вход</a>
-                <a href="/register" class="button small">Участвовать</a>
+                <a href="/register" class="button small nav-register-btn">Участвовать</a>
             <?php endif; ?>
         </nav>
         <?php require __DIR__ . '/header_channels.php'; ?>
@@ -127,5 +138,34 @@ $pageJsonLdBase = [
     }
     require __DIR__ . '/scroll_to_top.php';
     ?>
+    <script>
+    (function () {
+        var toggle = document.getElementById('nav-toggle');
+        var nav = document.getElementById('site-nav');
+        var backdrop = document.getElementById('nav-backdrop');
+        if (!toggle || !nav || !backdrop) return;
+
+        function setOpen(open) {
+            document.body.classList.toggle('nav-open', open);
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            toggle.setAttribute('aria-label', open ? 'Закрыть меню' : 'Открыть меню');
+            backdrop.hidden = !open;
+        }
+
+        toggle.addEventListener('click', function () {
+            setOpen(!document.body.classList.contains('nav-open'));
+        });
+        backdrop.addEventListener('click', function () { setOpen(false); });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') setOpen(false);
+        });
+        nav.querySelectorAll('a').forEach(function (link) {
+            link.addEventListener('click', function () { setOpen(false); });
+        });
+        window.addEventListener('resize', function () {
+            if (window.matchMedia('(min-width: 821px)').matches) setOpen(false);
+        });
+    })();
+    </script>
 </body>
 </html>

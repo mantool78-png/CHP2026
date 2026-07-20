@@ -112,6 +112,15 @@ if ($method === 'POST' && $path === '/admin/champion') {
     redirect('/admin');
 }
 
+if ($method === 'GET' && $path === '/admin/finale-preview') {
+    require_admin();
+
+    view('admin/finale_preview', [
+        'finale' => finale_results_hero_data(),
+    ]);
+    return;
+}
+
 if ($method === 'GET' && $path === '/admin/password') {
     require_admin();
 

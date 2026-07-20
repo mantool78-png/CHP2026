@@ -429,6 +429,82 @@ function mail_send_match_result(
     return mail_send_message($toEmail, $subject, $plain, $html);
 }
 
+/** Уточнение результата матча после исправления счёта (основное время vs овертайм). */
+function mail_send_match_result_correction(
+    string $toEmail,
+    string $participantName,
+    array $match,
+    array $predictionResult,
+    int $prevHome,
+    int $prevAway
+): bool {
+    if (!mail_is_configured()) {
+        return false;
+    }
+
+    $site = mail_public_base_url();
+    $mid = (int) ($match['id'] ?? 0);
+    $matchUrl = $mid > 0 ? $site . '/match?id=' . $mid : $site . '/my-scores';
+    $ratingUrl = $site . '/rating';
+    $rulesUrl = $site . '/rules';
+    $home = (string) ($match['home_team'] ?? '');
+    $away = (string) ($match['away_team'] ?? '');
+    $resultHome = (int) ($match['home_score'] ?? 0);
+    $resultAway = (int) ($match['away_score'] ?? 0);
+    $predHome = (int) ($predictionResult['pred_home'] ?? 0);
+    $predAway = (int) ($predictionResult['pred_away'] ?? 0);
+    $points = (int) ($predictionResult['points'] ?? 0);
+    $reason = trim((string) ($predictionResult['reason'] ?? ''));
+    if ($reason === '') {
+        $reason = $points === 3 ? 'Точный счет' : ($points === 1 ? 'Угадан исход' : 'Нет очков');
+    }
+    $name = trim($participantName) !== '' ? trim($participantName) : 'Участник';
+    $appName = (string) config('app.name', 'ЧМ-2026');
+    $stage = trim((string) ($match['stage'] ?? ''));
+
+    $subject = 'Уточнение результата: ' . $home . ' — ' . $away . ' ' . $resultHome . ':' . $resultAway;
+    $pointsLine = $points > 0
+        ? "Вам начислено {$points} " . ru_points_suffix($points) . " ({$reason})."
+        : "За этот матч начислено 0 очков ({$reason}).";
+
+    $plain = "Здравствуйте, {$name}!\n\n"
+        . "По правилам нашего конкурса в матчах плей-офф зачитывается только результат основного времени (90 минут + компенсация), без дополнительного времени и серии пенальти.\n\n"
+        . "В матче {$home} — {$away}"
+        . ($stage !== '' ? " ({$stage})" : '')
+        . " после окончания основного времени был зафиксирован счёт {$resultHome}:{$resultAway}. "
+        . "Победа {$home} была определена только в дополнительное время.\n\n"
+        . "Из-за технической ошибки при автоматической синхронизации с API в систему временно попал счёт {$prevHome}:{$prevAway} (с учётом овертайма). "
+        . "Мы исправили результат на {$resultHome}:{$resultAway} и пересчитали очки всех участников.\n\n"
+        . "Ваш прогноз: {$predHome}:{$predAway}\n"
+        . "{$pointsLine}\n\n"
+        . "Актуальный счёт и таблица прогнозов: {$matchUrl}\n"
+        . "Общий рейтинг: {$ratingUrl}\n"
+        . "Правила конкурса: {$rulesUrl}\n\n"
+        . "Приносим извинения за путаницу. Если что-то выглядит не так — напишите организатору.\n\n"
+        . "С уважением,\n{$appName}";
+
+    $safeName = h($name);
+    $html = '<p>Здравствуйте, <strong>' . $safeName . '</strong>!</p>'
+        . '<p>По правилам нашего конкурса в матчах плей-офф зачитывается только результат <strong>основного времени</strong> '
+        . '(90 минут + компенсация), без дополнительного времени и серии пенальти.</p>'
+        . '<p>В матче <strong>' . h($home) . ' — ' . h($away) . '</strong>'
+        . ($stage !== '' ? ' (' . h($stage) . ')' : '')
+        . ' после основного времени был зафиксирован счёт <strong>' . $resultHome . ':' . $resultAway . '</strong>. '
+        . 'Победа ' . h($home) . ' была определена только в дополнительное время.</p>'
+        . '<p>Из-за технической ошибки при автоматической синхронизации с API в систему временно попал счёт '
+        . '<strong>' . $prevHome . ':' . $prevAway . '</strong> (с учётом овертайма). '
+        . 'Мы исправили результат на <strong>' . $resultHome . ':' . $resultAway . '</strong> '
+        . 'и пересчитали очки всех участников.</p>'
+        . '<p>Ваш прогноз: <strong>' . $predHome . ':' . $predAway . '</strong><br>'
+        . h($pointsLine) . '</p>'
+        . '<p><a href="' . h($matchUrl) . '">Карточка матча</a> · '
+        . '<a href="' . h($ratingUrl) . '">Общий рейтинг</a> · '
+        . '<a href="' . h($rulesUrl) . '">Правила</a></p>'
+        . '<p class="muted">Приносим извинения за путаницу. Если что-то выглядит не так — напишите организатору.</p>';
+
+    return mail_send_message($toEmail, $subject, $plain, $html);
+}
+
 /** Напоминание об оплате взноса (участники без подтверждённой оплаты и без чека). */
 function mail_send_payment_reminder(string $toEmail, string $participantName, int $predictionsCount = 0): bool
 {
@@ -564,4 +640,141 @@ function mail_send_last_free_match_payment_notice(
         . '<a href="' . h($dashboardUrl) . '"><strong>Перейти к оплате в кабинете</strong></a></p>';
 
     return mail_send_message($toEmail, $subject, $plain, $html);
+}
+
+/** Благодарственное письмо по окончании Лиги прогнозов ЧМ-2026. */
+function mail_send_finale_thanks(string $toEmail, string $participantName): bool
+{
+    if (!mail_is_configured()) {
+        return false;
+    }
+
+    $site = mail_public_base_url();
+    $ratingUrl = $site . '/rating';
+    $name = trim($participantName) !== '' ? trim($participantName) : 'Участник';
+    $appName = (string) config('app.name', 'ЧМ-2026');
+
+    $subject = 'Лига прогнозов ЧМ-2026 завершена — спасибо!';
+
+    $plain = "Здравствуйте, {$name}!\n\n"
+        . "Лига прогнозов ЧМ-2026 — завершена.\n\n"
+        . "Спасибо всем, кто ставил прогнозы матч за матчем, следил за таблицей, спорил в чатах и дошёл с нами до финала. "
+        . "Отдельно — спасибо за поддержку проекта: ваши сообщения, репосты и просто «я с вами» многое значили.\n\n"
+        . "Без участников это был бы просто календарь игр. С вами получился живой чемпионат — с интригой, мини-лигами и своими героями.\n\n"
+        . "Итоги уже на сайте: {$ratingUrl}\n\n"
+        . "А мы говорим спасибо и до встречи в следующих сезонах.\n\n"
+        . "С уважением,\n{$appName}\n{$site}";
+
+    $safeName = h($name);
+    $html = '<p>Здравствуйте, <strong>' . $safeName . '</strong>!</p>'
+        . '<p><strong>Лига прогнозов ЧМ-2026 — завершена.</strong></p>'
+        . '<p>Спасибо всем, кто ставил прогнозы матч за матчем, следил за таблицей, спорил в чатах и дошёл с нами до финала. '
+        . 'Отдельно — спасибо за поддержку проекта: ваши сообщения, репосты и просто «я с вами» многое значили.</p>'
+        . '<p>Без участников это был бы просто календарь игр. С вами получился живой чемпионат — с интригой, мини-лигами и своими героями.</p>'
+        . '<p>Итоги уже на сайте: <a href="' . h($ratingUrl) . '">' . h($ratingUrl) . '</a></p>'
+        . '<p>А мы говорим спасибо и до встречи в следующих сезонах.</p>'
+        . '<p>С уважением,<br>' . h($appName) . '</p>';
+
+    return mail_send_message($toEmail, $subject, $plain, $html);
+}
+
+/**
+ * Разовая рассылка благодарности всем активным участникам.
+ * Прогресс пишется в settings, чтобы можно было безопасно продолжить после обрыва.
+ *
+ * @return array{total:int,sent:int,failed:int,skipped:int}
+ */
+function run_finale_thanks_mailout(): array
+{
+    $out = ['total' => 0, 'sent' => 0, 'failed' => 0, 'skipped' => 0];
+    if (!mail_is_configured()) {
+        return $out;
+    }
+
+    $sentKey = 'finale_thanks_mailout_sent_ids';
+    $doneKey = 'finale_thanks_mailout_completed_at';
+
+    $doneAt = db()->prepare('SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1');
+    $doneAt->execute([$doneKey]);
+    $alreadyDone = $doneAt->fetchColumn();
+    if (is_string($alreadyDone) && $alreadyDone !== '') {
+        $count = (int) db()->query(
+            "SELECT COUNT(*) FROM users
+             WHERE role = 'participant' AND payment_status = 'active'
+               AND email IS NOT NULL AND email <> ''"
+        )->fetchColumn();
+
+        return ['total' => $count, 'sent' => 0, 'failed' => 0, 'skipped' => $count];
+    }
+
+    $rawStmt = db()->prepare('SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1');
+    $rawStmt->execute([$sentKey]);
+    $raw = $rawStmt->fetchColumn();
+    $sentIds = [];
+    if (is_string($raw) && $raw !== '') {
+        foreach (explode(',', $raw) as $part) {
+            $id = (int) trim($part);
+            if ($id > 0) {
+                $sentIds[$id] = true;
+            }
+        }
+    }
+
+    $users = db()->query(
+        "SELECT id, name, email
+         FROM users
+         WHERE role = 'participant'
+           AND payment_status = 'active'
+           AND email IS NOT NULL
+           AND email <> ''
+         ORDER BY id ASC"
+    )->fetchAll();
+
+    $out['total'] = count($users);
+    $persist = static function (array $sentIds) use ($sentKey): void {
+        $value = implode(',', array_keys($sentIds));
+        $stmt = db()->prepare(
+            "INSERT INTO settings (setting_key, setting_value, updated_at)
+             VALUES (?, ?, NOW())
+             ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = NOW()"
+        );
+        $stmt->execute([$sentKey, $value]);
+    };
+
+    foreach ($users as $user) {
+        $userId = (int) ($user['id'] ?? 0);
+        if ($userId > 0 && isset($sentIds[$userId])) {
+            $out['skipped']++;
+            continue;
+        }
+
+        $email = trim((string) ($user['email'] ?? ''));
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $out['failed']++;
+            continue;
+        }
+        $ok = mail_send_finale_thanks($email, (string) ($user['name'] ?? ''));
+        if ($ok) {
+            $out['sent']++;
+            if ($userId > 0) {
+                $sentIds[$userId] = true;
+                $persist($sentIds);
+            }
+        } else {
+            $out['failed']++;
+            error_log('mail_send_finale_thanks failed for user #' . $userId . ' ' . $email);
+        }
+        usleep(80000);
+    }
+
+    if ($out['failed'] === 0 && ($out['sent'] + $out['skipped']) >= $out['total']) {
+        $done = db()->prepare(
+            "INSERT INTO settings (setting_key, setting_value, updated_at)
+             VALUES (?, ?, NOW())
+             ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = NOW()"
+        );
+        $done->execute(['finale_thanks_mailout_completed_at', date('c')]);
+    }
+
+    return $out;
 }

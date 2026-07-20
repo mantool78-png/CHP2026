@@ -51,12 +51,13 @@ try {
             'activity' => engagement_home_activity_snapshot(),
             'sitePolls' => site_polls_active(),
             'leaders' => array_slice(leaderboard(), 0, 10),
+            'finale' => finale_results_hero_data(),
             'prizePool' => prize_pool(),
             'nextMatch' => $nextMatchStmt->fetch() ?: null,
             'daysUntilKickoff' => contest_days_until_kickoff(),
             'registrationStats' => contest_registration_stats(),
-            'pageTitle' => 'Лига прогнозов на матчи ЧМ-2026 — iPhone 17e и денежные призы',
-            'pageDescription' => 'Конкурс прогнозов на матчи ЧМ-2026: первые 5 прогнозов бесплатно, главный приз iPhone 17e, денежные призы за 2–5 места. Турнир прогнозистов с прозрачными правилами.',
+            'pageTitle' => 'Лига прогнозов ЧМ-2026 — итоги конкурса',
+            'pageDescription' => 'Конкурс прогнозов на матчи ЧМ-2026 завершён. Итоги рейтинга, чемпион мира — Испания, призы топ-5.',
         ]);
         return;
     }
@@ -104,6 +105,7 @@ try {
         view('prizes', [
             'prizePool' => prize_pool(),
             'distribution' => prize_distribution(),
+            'prizeWinners' => prize_winners(),
             'pageTitle' => 'Призы чемпионата прогнозов ЧМ-2026 — iPhone и деньги',
             'pageDescription' => 'Призы конкурса прогнозов: Apple iPhone 17e 256 GB победителю и фиксированные денежные выплаты местам 2–5. Прозрачный призовой фонд.',
         ]);

@@ -1926,6 +1926,124 @@ function prize_places_count(): int
     return count(prize_distribution());
 }
 
+/**
+ * Призовые места с именами победителей из общей таблицы.
+ *
+ * @return list<array{
+ *     place:int,
+ *     label:string,
+ *     amount_rub:?int,
+ *     is_main_prize:bool,
+ *     user_id:?int,
+ *     name:?string,
+ *     total_points:?int,
+ *     exact_scores_count:?int,
+ *     outcomes_count:?int
+ * }>
+ */
+function prize_winners(): array
+{
+    $prizeByPlace = [];
+    foreach (prize_distribution() as $prize) {
+        $prizeByPlace[(int) $prize['place']] = $prize;
+    }
+
+    $limit = prize_places_count();
+    $leaders = array_slice(leaderboard(), 0, max(1, $limit));
+    $rows = [];
+
+    foreach ($leaders as $index => $row) {
+        $place = $index + 1;
+        $prize = $prizeByPlace[$place] ?? [
+            'place' => $place,
+            'label' => '',
+            'amount_rub' => null,
+            'is_main_prize' => false,
+        ];
+        $rows[] = [
+            'place' => $place,
+            'label' => (string) ($prize['label'] ?? ''),
+            'amount_rub' => isset($prize['amount_rub']) ? (int) $prize['amount_rub'] : null,
+            'is_main_prize' => !empty($prize['is_main_prize']),
+            'user_id' => (int) $row['id'],
+            'name' => (string) $row['name'],
+            'total_points' => (int) $row['total_points'],
+            'exact_scores_count' => (int) $row['exact_scores_count'],
+            'outcomes_count' => (int) $row['outcomes_count'],
+        ];
+    }
+
+    return $rows;
+}
+
+/**
+ * Данные для блока итогов на главной (пока только превью в админке).
+ *
+ * @return array{
+ *     top: list<array<string,mixed>>,
+ *     final_match: ?array<string,mixed>,
+ *     champion_team: ?array<string,mixed>,
+ *     participants_count: int
+ * }
+ */
+function finale_results_hero_data(): array
+{
+    $limit = prize_places_count();
+    $leaders = array_slice(leaderboard(), 0, max(1, $limit));
+    $prizeByPlace = [];
+    foreach (prize_distribution() as $prize) {
+        $prizeByPlace[(int) $prize['place']] = $prize;
+    }
+
+    $top = [];
+    foreach ($leaders as $index => $row) {
+        $place = $index + 1;
+        $prize = $prizeByPlace[$place] ?? null;
+        $top[] = [
+            'place' => $place,
+            'user_id' => (int) $row['id'],
+            'name' => (string) $row['name'],
+            'total_points' => (int) $row['total_points'],
+            'exact_scores_count' => (int) $row['exact_scores_count'],
+            'outcomes_count' => (int) $row['outcomes_count'],
+            'prize' => $prize,
+        ];
+    }
+
+    $finalMatch = db()->query(
+        "SELECT m.id, m.stage, m.starts_at, m.home_score, m.away_score, m.status,
+                ht.name AS home_team, at.name AS away_team,
+                ht.code AS home_code, at.code AS away_code
+         FROM matches m
+         JOIN teams ht ON ht.id = m.home_team_id
+         JOIN teams at ON at.id = m.away_team_id
+         WHERE m.stage LIKE 'Финал%'
+         ORDER BY m.starts_at DESC
+         LIMIT 1"
+    )->fetch() ?: null;
+
+    $championTeam = null;
+    $championTeamId = db()->query(
+        "SELECT setting_value FROM settings WHERE setting_key = 'champion_team_id' LIMIT 1"
+    )->fetchColumn();
+    if ($championTeamId !== false && $championTeamId !== null && $championTeamId !== '') {
+        $stmt = db()->prepare('SELECT id, name, code FROM teams WHERE id = ? LIMIT 1');
+        $stmt->execute([(int) $championTeamId]);
+        $championTeam = $stmt->fetch() ?: null;
+    }
+
+    $participantsCount = (int) db()->query(
+        "SELECT COUNT(*) FROM users WHERE role = 'participant' AND payment_status = 'active'"
+    )->fetchColumn();
+
+    return [
+        'top' => $top,
+        'final_match' => $finalMatch ?: null,
+        'champion_team' => $championTeam ?: null,
+        'participants_count' => $participantsCount,
+    ];
+}
+
 function participant_summary(int $userId): ?array
 {
     $leaders = leaderboard();

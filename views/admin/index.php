@@ -10,6 +10,7 @@
         <a class="button small secondary" href="/admin/api-football">API-Football</a>
         <a class="button small secondary" href="/admin/teams">Команды</a>
         <a class="button small secondary" href="/admin/mini-leagues">Мини-лиги</a>
+        <a class="button small secondary" href="/admin/finale-preview">Превью итогов</a>
         <a class="button small secondary" href="/admin/password">Сменить пароль</a>
     </div>
 </section>

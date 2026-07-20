@@ -23,6 +23,13 @@ $paymentBannerMessage = ($homeUser
         <a class="button small" href="/dashboard">Перейти к оплате</a>
     </section>
 <?php endif; ?>
+
+<?php
+$finale = $finale ?? finale_results_hero_data();
+$finaleIsDraft = false;
+require __DIR__ . '/partials/finale_results_hero.php';
+?>
+
 <section class="hero-duel">
     <!-- Main content block (left column) -->
     <div class="hero-duel-content">
